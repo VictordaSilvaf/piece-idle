@@ -1,4 +1,4 @@
-# Game Design Document — Maré dos Cinco
+# Game Design Document — Grand Line Idle
 
 **Versão:** 0.2  
 **Plataforma:** navegador, desktop e mobile responsivo  
@@ -7,7 +7,7 @@
 
 ## 1. Resumo
 
-**Maré dos Cinco** é um RPG idle 2D sobre montar uma tripulação, navegar entre ilhas, vencer inimigos automaticamente e melhorar personagens e navio. O jogador decide sua formação, rota, sinergias e investimentos; expedições continuam rendendo recursos enquanto está offline.
+**Grand Line Idle** é um RPG idle 2D sobre montar uma tripulação, navegar entre ilhas, vencer inimigos automaticamente e melhorar personagens e navio. O jogador decide sua formação, rota, sinergias e investimentos; expedições continuam rendendo recursos enquanto está offline.
 
 O universo deve ser inteiramente original: personagens, nomes, ilhas, artes e história próprios. A referência é a fantasia de aventura no mar, não o uso de propriedade intelectual de outras obras.
 

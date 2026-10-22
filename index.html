@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#083b58" />
-    <title>Maré dos Cinco — MVP</title>
+    <title>Grand Line Idle</title>
     <link rel="stylesheet" href="src/styles.css" />
   </head>
   <body>
@@ -13,14 +13,15 @@
         <section class="view is-active" data-view-panel="jogo" aria-labelledby="game-title">
           <section class="game-hud" aria-label="Mundo do jogo">
             <canvas id="game-canvas" width="960" height="500" aria-label="Cena jogável. Use WASD ou setas para andar; E para conversar com NPCs."></canvas>
-            <aside class="hud-player panel-frame"><div class="avatar-mark">★</div><div><p>CAPITÃO · NV. <span id="player-level">18</span></p><h2>Você</h2><div class="hud-bar"><span id="player-hp-bar" style="width:100%"></span></div><small><span id="player-hp">100</span> / <span id="player-max-hp">100</span> PV</small></div><div class="player-stats"><span>⚔ 4.020</span><span>XP <b id="player-xp">0 / 160</b></span><span>✦ <b id="berries">1.250</b></span></div></aside>
+            <aside class="hud-player panel-frame"><div class="avatar-mark">★</div><div><p>CAPITÃO · NV. <span id="player-level">18</span></p><h2>Você</h2><div class="hud-bar"><span id="player-hp-bar" style="width:100%"></span></div><small><span id="player-hp">100</span> / <span id="player-max-hp">100</span> PV</small><div class="hud-stamina"><span><i id="player-stamina-bar" style="width:100%"></i></span><small><b id="player-stamina">100</b> EST</small></div></div><div class="player-stats"><span>⚔ 4.020</span><span>XP <b id="player-xp">0 / 160</b></span><span>✦ <b id="berries">1.250</b></span></div></aside>
             <div class="hud-target panel-frame"><p id="scene-kicker">PORTO SEGURO</p><h1 id="game-title">Cais da Aurora</h1><span id="combat-state">Explore e fale com os NPCs</span></div>
             <nav class="hud-menu panel-frame" aria-label="Menu do jogo"><button class="hud-icon" type="button" data-spawn title="Voltar ao spawn">⌂<small>Spawn</small></button><button class="hud-icon" type="button" id="open-islands" title="Ilhas">⌁<small>Ilhas</small></button><button class="hud-icon" type="button" data-view="tripulacao" title="Tripulação">♟<small>Trip.</small></button><button class="hud-icon hud-exit" id="exit-game" type="button" title="Sair do jogo">×<small>Sair</small></button></nav>
             <aside class="hud-quest panel-frame"><p class="eyebrow">Objetivo atual</p><h2 id="quest-title">Preparar a expedição</h2><p id="quest-copy">Fale com Nami no cais ou abra o mapa para navegar até uma ilha.</p><div class="quest-progress"><span id="quest-progress" style="width:20%"></span></div></aside>
-            <div class="hud-hotbar" aria-label="Habilidades e atalhos"><button class="skill-key" type="button" id="talk-shortcut"><b>E</b><span>Conversar</span></button><button class="skill-key"><b>1</b><span>Golpe</span></button><button class="skill-key"><b>2</b><span>Investida</span></button><button class="skill-key"><b>3</b><span>Defesa</span></button><button class="skill-key potion-key" type="button" id="use-potion" title="Usar poção de reviver"><b>⚗</b><span>Poção <em id="potion-count">3</em></span></button><button class="skill-key" type="button" data-view="tripulacao"><b>♟</b><span>Tripulação</span></button><div class="mini-party" id="mini-party" aria-label="Tripulação ativa"></div></div>
+            <div class="hud-hotbar" aria-label="Utilitários de farm"><button class="skill-key" type="button" id="talk-shortcut"><b>E</b><span>Conversar</span></button><button class="skill-key potion-key" type="button" id="use-potion" title="Usar poção de reviver"><b>⚗</b><span>Poção <em id="potion-count">3</em></span></button><button class="skill-key" type="button" data-view="tripulacao"><b>♟</b><span>Tripulação</span></button><div class="mini-party" id="mini-party" aria-label="Tripulação ativa"></div></div>
             <section class="dialogue-panel panel-frame" id="dialogue-panel" aria-live="polite"><div class="npc-seal" id="npc-seal">⚓</div><div><p class="eyebrow" id="dialogue-name">Mestre do Porto</p><p id="dialogue-text">Bem-vindo, capitão. Caminhe até um NPC e aperte <strong>E</strong> para conversar.</p></div><button class="dialogue-close" type="button" id="dialogue-close" aria-label="Fechar conversa">×</button></section>
             <section class="death-overlay" id="death-overlay" aria-live="assertive" aria-hidden="true"><div class="death-card"><p>Tripulação derrotada</p><h2>O mar ficou silencioso.</h2><span id="revive-countdown">A tripulação revive em 8s</span><button class="button button-primary" id="revive-potion" type="button">⚗ Reviver com poção (<b id="death-potion-count">3</b>)</button><button class="death-return" id="death-return" type="button">Voltar ao porto</button></div></section>
             <div class="game-legend"><span><kbd>WASD</kbd> andar</span><span><kbd>E</kbd> conversar</span><span><kbd>Auto</kbd> caçar inimigos</span></div>
+            <section class="reward-stack" id="reward-stack" aria-live="polite" aria-label="Recompensas recebidas"></section>
           </section>
         </section>
 

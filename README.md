@@ -1,4 +1,4 @@
-# Maré dos Cinco — MVP
+# Grand Line Idle — MVP
 
 Protótipo web estático de um jogo idle de tripulação. Inclui dez personagens, seleção de cinco membros, sinergias, rotas, ilhas e uma expedição simulada.
 
@@ -7,10 +7,17 @@ Protótipo web estático de um jogo idle de tripulação. Inclui dez personagens
 No diretório do projeto:
 
 ```bash
-python3 -m http.server 4173
+npm install
+npm run dev
 ```
 
-Abra `http://localhost:4173` no navegador.
+Abra o endereço mostrado pelo Vite (normalmente `http://localhost:5173`). O jogo agora usa Phaser 3 para o mundo jogável: cenário, sprites, animações, inimigos, barras no mapa e efeitos de habilidade. Os menus e modais permanecem em HTML/CSS por cima do canvas, para serem responsivos e acessíveis.
+
+Para gerar a versão de produção:
+
+```bash
+npm run build
+```
 
 ## Observação de propriedade intelectual
 

@@ -1,4 +1,9 @@
-const makeSkills = (active, passive) => [...active.map(([name, description]) => ({ name, description, kind: 'active' })), { ...passive, kind: 'passive' }];
+const skillProfiles = [
+  { cooldown: 1700, staminaCost: 18, multiplier: 1.55 },
+  { cooldown: 2900, staminaCost: 28, multiplier: 2.05 },
+  { cooldown: 4400, staminaCost: 40, multiplier: 2.65 },
+];
+const makeSkills = (active, passive) => [...active.map(([name, description], index) => ({ name, description, kind: 'active', ...skillProfiles[index] })), { ...passive, kind: 'passive' }];
 
 const characters = [
   { id: 'luffy', name: 'Monkey D. Luffy', role: 'Capitão', icon: '☀', level: 18, power: 920, tags: ['Capitão', 'Coragem'], color: 'coral', skills: makeSkills([['Gomu Gomu no Pistol', 'Um soco elástico de longo alcance.'], ['Gomu Gomu no Gatling', 'Rajada de golpes de borracha.'], ['Gomu Gomu no Bazooka', 'Impacto duplo que lança o alvo.']], { name: 'Vontade do Capitão', description: 'Aumenta em 8% o dano de toda a tripulação.', effect: 'captain' }) },
@@ -12,6 +17,15 @@ const characters = [
   { id: 'brook', name: 'Brook', role: 'Músico', icon: '♫', level: 13, power: 610, tags: ['Músico', 'Suporte'], color: 'purple', skills: makeSkills([['Soul Solid', 'Corte congelante da alma.'], ['Three Verse Humming', 'Golpe veloz antes do inimigo perceber.'], ['Party Music', 'Melodia que inspira os aliados.']], { name: 'Yomi Yomi no Mi', description: 'Reduz em 100 ms o intervalo entre ataques coletivos.', effect: 'tempo' }) },
   { id: 'jinbe', name: 'Jinbe', role: 'Timoneiro', icon: '≋', level: 16, power: 810, tags: ['Navegador', 'Guardião'], color: 'aqua', skills: makeSkills([['Karatê dos Homens-Peixe', 'Impacto que transmite força pela água do corpo.'], ['Brachial Block', 'Defesa sólida contra golpes pesados.'], ['Vagabond Drill', 'Onda perfurante de água.']], { name: 'Mestre do Mar', description: 'Reduz em mais 8% o dano recebido pela tripulação.', effect: 'tideguard' }) },
 ];
+
+const characterStatSeeds = {
+  luffy: [108, 24, 7, 100, 13], zoro: [122, 27, 9, 82, 9], nami: [82, 20, 4, 112, 15], usopp: [78, 22, 4, 106, 12], sanji: [98, 25, 6, 94, 12],
+  chopper: [112, 18, 8, 120, 16], robin: [88, 23, 5, 102, 12], franky: [132, 24, 11, 78, 8], brook: [86, 21, 5, 110, 14], jinbe: [128, 26, 10, 88, 10],
+};
+characters.forEach((character) => {
+  const [maxHp, attack, defense, maxStamina, staminaRegen] = characterStatSeeds[character.id];
+  Object.assign(character, { maxHp, attack, defense, maxStamina, stamina: maxStamina, staminaRegen, experience: 0, experienceToLevel: 120 + character.level * 12, skillReadyAt: [0, 0, 0] });
+});
 
 const islands = [
   { id: 'ruinas', name: 'Ruínas da Enseada', subtitle: 'Fragmentos · risco médio', icon: '⚓', color: '#3b8db6', reward: 120, enemy: 'Saqueador da Névoa', enemies: 5, terrain: 'ruins' },
@@ -50,7 +64,7 @@ const worldIslands = [
 ].map(([id, name, subtitle], index) => ({
   id, name, subtitle, icon: ['⚓', '🦕', '☀', '❄', '❔', '🏜', '🍺', '☁', '😇', '🦒', '⚙', '⚖', '🚆', '🚆', '🚆', '⚔', '🫧', '🔩', '🌺', '🌿', '🪬', '🏰', '💪', '🪽', '🐾', '🏳', '🌉'][index],
   color: ['#3b8db6', '#537d4c', '#e2a447', '#7db8df', '#7a8693', '#c28a43', '#81614b', '#74b4d6', '#a6dff2'][index % 9],
-  terrain: ['ruins', 'mangrove', 'storm'][index % 3], reward: 90 + index * 12, enemies: 4 + (index % 4), enemy: ['Batedor da Ilha', 'Criatura Selvagem', 'Guardião da Rota'][index % 3],
+  terrain: ['ruins', 'mangrove', 'mangrove', 'snow', 'mangrove', 'desert', 'ruins', 'storm', 'storm', 'mangrove'][index] || ['ruins', 'mangrove', 'storm'][index % 3], reward: 90 + index * 12, enemies: 4 + (index % 4), enemy: ['Batedor da Ilha', 'Criatura Selvagem', 'Guardião da Rota'][index % 3],
   levelMin: index * 4 + 1, levelMax: index * 4 + 10,
 }));
 
@@ -58,6 +72,21 @@ const selected = new Set(['luffy', 'zoro', 'nami', 'sanji', 'chopper']);
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 const assetPaths = {
+  pcHeroIdle: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Entities/Characters/Body_A/Animations/Idle_Base/Idle_Down-Sheet.png',
+  pcHeroWalk: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Entities/Characters/Body_A/Animations/Walk_Base/Walk_Down-Sheet.png',
+  pcHeroIdleSide: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Entities/Characters/Body_A/Animations/Idle_Base/Idle_Side-Sheet.png',
+  pcHeroIdleUp: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Entities/Characters/Body_A/Animations/Idle_Base/Idle_Up-Sheet.png',
+  pcHeroWalkSide: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Entities/Characters/Body_A/Animations/Walk_Base/Walk_Side-Sheet.png',
+  pcHeroWalkUp: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Entities/Characters/Body_A/Animations/Walk_Base/Walk_Up-Sheet.png',
+  pcSkeleton: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Entities/Mobs/Skeleton Crew/Skeleton - Base/Idle/Idle-Sheet.png',
+  pcOrc: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Entities/Mobs/Orc Crew/Orc/Idle/Idle-Sheet.png',
+  pcFloors: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Environment/Tilesets/Floors_Tiles.png',
+  pcWater: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Environment/Tilesets/Water_tiles.png',
+  pcTree: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_01/Size_04.png',
+  pcRock: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Environment/Props/Static/Rocks.png',
+  pcVegetation: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Environment/Props/Static/Vegetation.png',
+  pcBonfire: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Environment/Structures/Stations/Bonfire/Bonfire.png',
+  pcFarm: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Environment/Props/Static/Farm.png',
   idle: 'assets/Farm RPG/Character/Idle.png',
   walk: 'assets/Farm RPG/Character/Walk.png',
   tiles: 'assets/Farm RPG/Tileset/Tileset Grass Spring.png',
@@ -70,9 +99,44 @@ const assetPaths = {
   chicken: 'assets/Farm RPG/Farm Animals/Chicken Red.png',
   cow: 'assets/Farm RPG/Farm Animals/Female Cow Brown.png',
 };
+const powerRoot = 'assets/Powers/Super Pixel Effects Gigapack (Free Version)/PNG';
+const powerEffects = {
+  luffy: { path: 'Impacts/directional_impact_001/directional_impact_001_small_blue', frames: 7, width: 32, height: 32, scale: 2.2 },
+  zoro: { path: 'Impacts/symmetrical_impact_001/symmetrical_impact_001_small_yellow', frames: 7, width: 48, height: 48, scale: 1.45 },
+  nami: { path: 'Lightning/lightning_burst_001/lightning_burst_001_small_violet', frames: 8, width: 32, height: 32, scale: 2.4 },
+  usopp: { path: 'Sci-fi/scifi_spark_burst_001/scifi_spark_burst_001_small_yellow', frames: 12, width: 64, height: 64, scale: 1.05 },
+  sanji: { path: 'Fire/fire_looping_003A/fire_looping_003A_small_orange', frames: 5, width: 40, height: 64, scale: 1.25 },
+  chopper: { path: 'Fantasy Spells/spell_heal_001/spell_heal_001_small_red', frames: 16, width: 64, height: 64, scale: 1.05 },
+  robin: { path: 'Magic Bursts/round_light_burst_001/round_light_burst_001_small_yellow', frames: 9, width: 128, height: 72, scale: .65 },
+  franky: { path: 'Sci-fi/scifi_spark_burst_001/scifi_spark_burst_001_small_yellow', frames: 12, width: 64, height: 64, scale: 1.15 },
+  brook: { path: 'Magic Bursts/directional_music_burst_001/directional_music_burst_001_small_red', frames: 21, width: 64, height: 64, scale: 1.05 },
+  jinbe: { path: 'Impacts/directional_impact_001/directional_impact_001_small_blue', frames: 7, width: 32, height: 32, scale: 2.4 },
+};
+const keyedSpriteAssets = new Set(['pcHeroIdle', 'pcHeroWalk', 'pcHeroIdleSide', 'pcHeroIdleUp', 'pcHeroWalkSide', 'pcHeroWalkUp', 'pcSkeleton', 'pcOrc']);
+
+function removeSheetBackdrop(image) {
+  const source = document.createElement('canvas'); source.width = image.naturalWidth; source.height = image.naturalHeight;
+  const sourceContext = source.getContext('2d', { willReadFrequently: true }); sourceContext.drawImage(image, 0, 0);
+  const pixels = sourceContext.getImageData(0, 0, source.width, source.height);
+  const [red, green, blue] = pixels.data;
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    const distanceFromBackdrop = Math.abs(pixels.data[index] - red) + Math.abs(pixels.data[index + 1] - green) + Math.abs(pixels.data[index + 2] - blue);
+    if (distanceFromBackdrop < 18) pixels.data[index + 3] = 0;
+  }
+  sourceContext.putImageData(pixels, 0, 0); image.cleanedSheet = source;
+}
+
 const assets = Object.fromEntries(Object.entries(assetPaths).map(([name, src]) => {
-  const image = new Image(); image.src = src; return [name, image];
+  const image = new Image();
+  if (keyedSpriteAssets.has(name)) image.addEventListener('load', () => removeSheetBackdrop(image));
+  image.src = src;
+  return [name, image];
 }));
+const powerSprites = Object.fromEntries(Object.entries(powerEffects).map(([id, effect]) => [id, Array.from({ length: effect.frames }, (_, frame) => {
+  const image = new Image();
+  image.src = `${powerRoot}/${effect.path}/frame${String(frame).padStart(4, '0')}.png`;
+  return image;
+})]));
 const keys = new Set();
 let view = 'jogo';
 let activeIsland = null;
@@ -80,6 +144,7 @@ let autoCombat = true;
 let lastFrame = 0;
 let lastAttack = 0;
 let lastPassiveTick = 0;
+let lastHudUpdate = 0;
 let toastTimer;
 let dialogueOpen = false;
 let berries = 1250;
@@ -92,10 +157,12 @@ let potionCount = 3;
 let playerDownUntil = 0;
 let partyWiped = false;
 let partyReviveAt = 0;
+let activePowerEffects = [];
 
-const player = { x: 220, y: 332, radius: 17, hp: 100, maxHp: 100, speed: 175, facing: 1, isHit: 0 };
+const player = { x: 220, y: 332, radius: 17, hp: 100, maxHp: 100, speed: 175, facing: 1, direction: 'down', isHit: 0 };
 let enemies = [];
 let companions = [];
+const camera = { x: 0, y: 0 };
 
 const npcs = [
   { id: 'nami', name: 'Nami', icon: '⌁', x: 560, y: 278, color: '#e7ad42', dialogue: 'Capitão, o mar está calmo. Abra o mapa e escolha uma ilha para iniciarmos uma expedição.', action: 'mapa', actionLabel: 'Abrir mapa' },
@@ -105,15 +172,35 @@ const npcs = [
 
 function byId(id) { return document.getElementById(id); }
 function crew() { return characters.filter((character) => selected.has(character.id)); }
+function characterById(id) { return characters.find((character) => character.id === id); }
 function hasPassive(effect) { return crew().some((member) => member.skills.at(-1).effect === effect); }
 function distance(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+function updateDirection(unit, dx, dy) { if (!dx && !dy) return; unit.direction = Math.abs(dx) > Math.abs(dy) ? 'side' : dy < 0 ? 'up' : 'down'; if (dx) unit.facing = dx < 0 ? -1 : 1; }
+function worldSize() {
+  return { width: Math.max(1440, canvas.clientWidth), height: Math.max(900, canvas.clientHeight) };
+}
+function characterMaxHp(character) { return character.maxHp + (character.level - 1) * 4; }
+function characterAttack(character) { return character.attack + Math.floor((character.level - 1) * 1.35); }
+function characterDefense(character) { return character.defense + Math.floor((character.level - 1) * .35); }
+function skillRank(character) { return 1 + Math.floor((character.level - 1) / 6); }
+function skillDamageMultiplier(character, skill) { return skill.multiplier * (1 + (skillRank(character) - 1) * .11); }
+
+function syncCaptainProgress() {
+  const captain = characterById('luffy');
+  playerLevel = captain.level; experience = captain.experience; experienceToLevel = captain.experienceToLevel;
+  player.maxHp = characterMaxHp(captain); player.hp = clamp(player.hp, 0, player.maxHp);
+}
 
 function updatePlayerHud() {
+  syncCaptainProgress();
+  const captain = characterById('luffy');
   byId('player-level').textContent = playerLevel;
   byId('player-hp').textContent = Math.ceil(player.hp);
   byId('player-max-hp').textContent = player.maxHp;
   byId('player-hp-bar').style.width = `${(player.hp / player.maxHp) * 100}%`;
+  byId('player-stamina').textContent = Math.ceil(captain.stamina);
+  byId('player-stamina-bar').style.width = `${(captain.stamina / captain.maxStamina) * 100}%`;
   byId('player-xp').textContent = `${experience.toLocaleString('pt-BR')} / ${experienceToLevel.toLocaleString('pt-BR')}`;
   byId('berries').textContent = berries.toLocaleString('pt-BR');
   byId('potion-count').textContent = potionCount;
@@ -123,7 +210,7 @@ function updatePlayerHud() {
 function resetCompanions() {
   companions = crew().filter((member) => member.id !== 'luffy').slice(0, 4).map((member, index) => ({
     ...member, x: player.x - 42 - index * 9, y: player.y + 28 + index * 8,
-    radius: 15, hp: 68 + member.level * 5, maxHp: 68 + member.level * 5,
+    radius: 15, hp: characterMaxHp(member), maxHp: characterMaxHp(member),
     speed: 142 + index * 7, cooldown: 0, downUntil: 0,
   }));
 }
@@ -182,20 +269,47 @@ function usePotion() {
 function rewardKill(enemy) {
   const xpGain = enemy.xpReward;
   const berryGain = enemy.berryReward;
-  experience += xpGain;
   berries += berryGain;
-  let levelsGained = 0;
-  while (experience >= experienceToLevel) {
-    experience -= experienceToLevel;
-    playerLevel += 1;
-    levelsGained += 1;
-    experienceToLevel = Math.floor(experienceToLevel * 1.16);
-    player.maxHp += 8;
-    player.hp = player.maxHp;
-    companions.forEach((member) => { member.maxHp += 6; member.hp = member.maxHp; });
-  }
+  const levelUps = crew().map((member) => grantCharacterExperience(member, xpGain)).filter(Boolean);
   updatePlayerHud();
-  showToast(`${enemy.name} derrotado! +${xpGain} XP · +${berryGain} Berries${levelsGained ? ` · Nível ${playerLevel}!` : ''}`);
+  showReward(enemy, xpGain, berryGain, levelUps.some((member) => member.id === 'luffy') ? 1 : 0);
+  if (levelUps.length) showToast(`${levelUps.map((member) => member.name.split(' ').at(-1)).join(', ')} subiu de nível!`);
+}
+
+function grantCharacterExperience(character, amount) {
+  let leveledUp = false;
+  character.experience += amount;
+  while (character.experience >= character.experienceToLevel) {
+    character.experience -= character.experienceToLevel;
+    character.level += 1;
+    character.experienceToLevel = Math.floor(character.experienceToLevel * 1.14);
+    character.stamina = character.maxStamina;
+    leveledUp = true;
+  }
+  const companion = companions.find((member) => member.id === character.id);
+  if (companion) {
+    const previousMaxHp = companion.maxHp;
+    companion.maxHp = characterMaxHp(character);
+    companion.hp = Math.min(companion.maxHp, companion.hp + Math.max(0, companion.maxHp - previousMaxHp));
+  }
+  if (character.id === 'luffy' && leveledUp) { player.maxHp = characterMaxHp(character); player.hp = player.maxHp; }
+  return leveledUp ? character : null;
+}
+
+function recoverStamina(delta) {
+  if (!activeIsland) return;
+  crew().forEach((character) => { character.stamina = Math.min(character.maxStamina, character.stamina + character.staminaRegen * delta); });
+}
+
+function useCombatSkill(member, now) {
+  const character = characterById(member.id);
+  const skillIndex = character.skills.findIndex((skill, index) => skill.kind === 'active' && character.stamina >= skill.staminaCost && now >= character.skillReadyAt[index]);
+  const basicDamage = 2 + Math.floor(characterAttack(character) / 7);
+  if (skillIndex === -1) return { damage: basicDamage, skill: null };
+  const skill = character.skills[skillIndex];
+  character.stamina -= skill.staminaCost;
+  character.skillReadyAt[skillIndex] = now + skill.cooldown;
+  return { damage: Math.round(characterAttack(character) * skillDamageMultiplier(character, skill)), skill };
 }
 
 function healMostWounded(amount) {
@@ -221,6 +335,7 @@ function setView(nextView) {
   document.querySelectorAll('[data-view-panel]').forEach((panel) => panel.classList.toggle('is-active', panel.dataset.viewPanel === nextView));
   document.querySelectorAll('.nav-link').forEach((button) => button.classList.toggle('is-active', button.dataset.view === nextView));
   if (nextView === 'jogo') requestAnimationFrame(() => resizeCanvas());
+  if (nextView === 'tripulacao') renderCrew();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -239,6 +354,22 @@ function showToast(message) {
   toast.classList.add('is-visible');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 3000);
+}
+
+function showReward(enemy, xpGain, berryGain, levelsGained = 0) {
+  const stack = byId('reward-stack');
+  const reward = document.createElement('article');
+  reward.className = 'reward-notification';
+  reward.innerHTML = `<span class="reward-seal">✦</span><div><b>${enemy.name} derrotado</b><small>+${xpGain} XP <i>·</i> +${berryGain} Berries${levelsGained ? ` <em>NV. ${playerLevel}</em>` : ''}</small></div>`;
+  stack.append(reward);
+
+  while (stack.children.length > 3) stack.firstElementChild.remove();
+  requestAnimationFrame(() => reward.classList.add('is-visible'));
+  setTimeout(() => {
+    reward.classList.remove('is-visible');
+    reward.classList.add('is-leaving');
+    setTimeout(() => reward.remove(), 180);
+  }, 3400);
 }
 
 function setDialogue(npc, force = false) {
@@ -271,40 +402,87 @@ function drawBar(x, y, width, percent, color) {
 function ready(image) { return image && image.complete && image.naturalWidth > 0; }
 
 function drawSprite(image, sx, sy, sw, sh, dx, dy, dw = sw, dh = sh) {
-  if (ready(image)) ctx.drawImage(image, sx, sy, sw, sh, Math.round(dx), Math.round(dy), dw, dh);
+  if (ready(image)) ctx.drawImage(image.cleanedSheet || image, sx, sy, sw, sh, Math.round(dx), Math.round(dy), dw, dh);
 }
 
 function drawTileGround(width, height) {
-  ctx.fillStyle = activeIsland?.terrain === 'storm' ? '#776a99' : activeIsland?.terrain === 'ruins' ? '#ccaa68' : '#69b875';
+  const terrain = activeIsland?.terrain;
+  ctx.fillStyle = terrain === 'storm' ? '#395c68' : terrain === 'snow' ? '#d4e5e8' : terrain === 'desert' ? '#cba56a' : terrain === 'ruins' ? '#6c563f' : '#2e711b';
   ctx.fillRect(0, 0, width, height);
-  if (!ready(assets.tiles)) return;
-  for (let y = 0; y < height; y += 32) for (let x = 0; x < width; x += 32) drawSprite(assets.tiles, 32, 0, 32, 32, x, y);
+  const detail = terrain === 'storm' ? 'rgba(202, 230, 234, .12)' : terrain === 'snow' ? 'rgba(255, 255, 255, .52)' : terrain === 'desert' ? 'rgba(246, 211, 139, .23)' : terrain === 'ruins' ? 'rgba(222, 174, 102, .13)' : 'rgba(122, 196, 67, .18)';
+  ctx.fillStyle = detail;
+  for (let y = 18; y < height; y += 46) for (let x = 12 + ((y / 46) % 2) * 17; x < width; x += 59) {
+    ctx.fillRect(x, y, 6, 2); ctx.fillRect(x + 4, y - 4, 2, 5);
+  }
 }
 
 function drawFarmObject(image, sx, sy, sw, sh, x, y, scale = 2) {
   drawSprite(image, sx, sy, sw, sh, x, y, sw * scale, sh * scale);
 }
 
+function drawPixelWater(x, y, width, height) {
+  ctx.fillStyle = '#2b86a9'; ctx.fillRect(x, y, width, height);
+  if (ready(assets.pcWater)) for (let row = y; row < y + height; row += 32) for (let column = x; column < x + width; column += 32) drawSprite(assets.pcWater, 16, 128, 16, 16, column, row, 32, 32);
+  ctx.fillStyle = 'rgba(214, 246, 255, .3)';
+  for (let wave = x + 14; wave < x + width; wave += 58) ctx.fillRect(wave, y + 17 + ((wave / 58) % 3) * 13, 18, 3);
+}
+
+function drawPcTree(x, y, variant = 0, scale = 1) {
+  const sources = [[0, 0], [92, 0], [0, 128], [92, 128]];
+  const [sx, sy] = sources[variant % sources.length];
+  drawSprite(assets.pcTree, sx, sy, 92, 128, x, y, 92 * scale, 128 * scale);
+}
+
+function drawPcRock(x, y, variant = 0, scale = 1) {
+  const sourceX = (variant % 4) * 52;
+  drawSprite(assets.pcRock, sourceX, 0, 52, 76, x, y, 52 * scale, 76 * scale);
+}
+
+function drawPcVegetation(x, y, variant = 0) {
+  const sx = (variant % 4) * 48;
+  drawSprite(assets.pcVegetation, sx, 144, 48, 48, x, y, 48, 48);
+}
+
+function drawMapBorder(width, height, snowy = false) {
+  const treeScale = snowy ? 1.05 : 1;
+  for (let x = -20; x < width; x += 76) { const index = Math.floor((x + 20) / 76); drawPcTree(x, -44 + (index % 3) * 5, index % 4, treeScale); drawPcTree(x, height - 95 + (index % 2) * 8, (index + 1) % 4, treeScale); }
+  for (let y = 58; y < height - 80; y += 95) { const index = Math.floor((y - 58) / 95); drawPcTree(-26, y, (index + 2) % 4, treeScale); drawPcTree(width - 66, y, (index + 3) % 4, treeScale); }
+}
+
+function drawDirtTrail(width, height, island = false) {
+  ctx.save();
+  ctx.strokeStyle = island ? '#654526' : '#75502f';
+  ctx.lineWidth = 94; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(width * .08, height * .70); ctx.bezierCurveTo(width * .25, height * .56, width * .32, height * .50, width * .48, height * .54); ctx.bezierCurveTo(width * .64, height * .58, width * .74, height * .50, width * .92, height * .61); ctx.stroke();
+  ctx.strokeStyle = island ? '#a97845' : '#bd884f'; ctx.lineWidth = 78; ctx.stroke();
+  ctx.fillStyle = 'rgba(83, 54, 32, .18)';
+  for (let x = width * .22; x < width * .79; x += 72) ctx.fillRect(x, height * .57 + (x % 3) * 9, 19, 4);
+  ctx.restore();
+}
+
 function drawBackground(width, height) {
   drawTileGround(width, height);
-  const gradient = ctx.createLinearGradient(0, 0, 0, height);
   if (!activeIsland) {
-    ctx.fillStyle = 'rgba(92, 188, 205, .25)'; ctx.fillRect(0, 0, width, height * .28);
-    ctx.fillStyle = 'rgba(32, 121, 158, .28)'; ctx.fillRect(0, height * .73, width, height * .27);
-    for (let x = 70; x < width; x += 165) drawFarmObject(assets.tree, 96, 0, 32, 48, x, 40 + (x % 3) * 10, 2);
-    drawFarmObject(assets.house, 0, 0, 112, 112, width - 250, 38, 1);
-    drawFarmObject(assets.road, 0, 0, 80, 64, width * .3, height * .54, 2);
-    drawFarmObject(assets.crops, 0, 0, 96, 64, width - 280, height - 150, 1);
-    drawFarmObject(assets.fence, 0, 0, 48, 48, width - 350, height - 86, 1.5);
-    drawFarmObject(assets.chest, 0, 0, 32, 32, width * .42, height * .64, 1.2);
-    drawFarmObject(assets.chicken, 0, 0, 32, 32, width * .2, height * .57, 1.2);
-    drawFarmObject(assets.cow, 0, 0, 32, 32, width * .75, height * .54, 1.3);
+    drawPixelWater(0, height * .68, width, height * .32);
+    drawDirtTrail(width, height);
+    drawMapBorder(width, height);
+    drawPcTree(width * .68, 35, 1, 1.13); drawPcTree(width * .78, 50, 0, .95);
+    drawPcRock(width * .34, height * .32, 0, .9); drawPcRock(width * .56, height * .27, 2, .75);
+    drawPcVegetation(width * .18, height * .36, 0); drawPcVegetation(width * .69, height * .44, 2);
+    drawSprite(assets.pcBonfire, 0, 0, 64, 48, width * .48, height * .42, 64, 48);
+    drawPcRock(width * .76, height * .45, 3, .72);
   } else {
-    const tint = activeIsland.terrain === 'storm' ? 'rgba(63, 42, 103, .34)' : activeIsland.terrain === 'ruins' ? 'rgba(189, 125, 58, .22)' : 'rgba(43, 120, 80, .2)';
-    ctx.fillStyle = tint; ctx.fillRect(0, 0, width, height);
-    for (let x = 20; x < width; x += 145) drawFarmObject(assets.tree, 64, 0, 32, 48, x, 25 + (x % 4) * 9, 1.7);
-    for (let x = 90; x < width; x += 180) drawFarmObject(assets.road, 0, 0, 80, 64, x, height * .61, 1.25);
-    drawFarmObject(assets.chest, 0, 0, 32, 32, width * .75, height * .22, 1.2);
+    const storm = activeIsland.terrain === 'storm'; const ruins = activeIsland.terrain === 'ruins';
+    if (storm) { ctx.fillStyle = 'rgba(38, 62, 77, .16)'; ctx.fillRect(0, 0, width, height); drawPixelWater(0, height * .74, width, height * .26); }
+    if (ruins) { ctx.fillStyle = 'rgba(105, 68, 39, .28)'; ctx.fillRect(0, 0, width, height); }
+    drawDirtTrail(width, height, true);
+    drawMapBorder(width, height, storm);
+    drawPcTree(width * .12, height * .13, ruins ? 2 : 0, 1.05); drawPcTree(width * .76, height * .12, storm ? 3 : 1, 1.08);
+    drawPcTree(width * .05, height * .55, 1, .85); drawPcTree(width * .84, height * .55, 2, .9);
+    drawPcRock(width * .32, height * .27, 1, .9); drawPcRock(width * .66, height * .62, 3, .9);
+    drawPcVegetation(width * .21, height * .65, 1); drawPcVegetation(width * .73, height * .32, 3);
+    if (ruins) drawSprite(assets.pcBonfire, 0, 48, 64, 48, width * .47, height * .33, 64, 48);
   }
 }
 
@@ -319,15 +497,82 @@ function drawEntity(entity, fill, symbol, label, hp) {
   if (hp !== undefined) drawBar(entity.x - 25, entity.y - entity.radius - 7, 50, hp, hp > .35 ? '#5ecb76' : '#ed6c55');
 }
 
+function drawEnemy(enemy, index) {
+  const image = index % 2 ? assets.pcOrc : assets.pcSkeleton;
+  if (!ready(image)) return drawEntity(enemy, enemy.color, enemy.icon, enemy.name, enemy.hp / enemy.maxHp);
+  const frame = Math.floor(animationTime / 190) % 4;
+  ctx.save(); ctx.translate(enemy.x, enemy.y);
+  drawSprite(image, frame * 32, 0, 32, 32, -28, -28, 56, 56);
+  ctx.restore();
+  ctx.fillStyle = '#fff'; ctx.font = '700 10px system-ui'; ctx.textAlign = 'center'; ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 3;
+  ctx.fillText(enemy.name, enemy.x, enemy.y - 30); ctx.shadowBlur = 0;
+  drawBar(enemy.x - 25, enemy.y - 25, 50, enemy.hp / enemy.maxHp, enemy.hp / enemy.maxHp > .35 ? '#68cf82' : '#ed6c55');
+}
+
+function triggerPowerEffects(fighters, target, now) {
+  fighters.forEach((fighter, index) => {
+    const effect = powerEffects[fighter.id];
+    if (!effect) return;
+    const angle = (Math.PI * 2 * index) / Math.max(1, fighters.length);
+    activePowerEffects.push({ id: fighter.id, x: target.x + Math.cos(angle) * 12, y: target.y + Math.sin(angle) * 10 - 8, startedAt: now + index * 42 });
+  });
+  if (activePowerEffects.length > 24) activePowerEffects.splice(0, activePowerEffects.length - 24);
+}
+
+function triggerCombatMotion(fighters, target, now) {
+  fighters.forEach((fighter) => {
+    const unit = fighter.id === 'luffy' ? player : companions.find((member) => member.id === fighter.id);
+    if (!unit) return;
+    const dx = target.x - unit.x; const dy = target.y - unit.y; const distanceToTarget = Math.hypot(dx, dy) || 1;
+    updateDirection(unit, dx, dy);
+    Object.assign(unit, { attackUntil: now + 260, attackDx: dx / distanceToTarget, attackDy: dy / distanceToTarget });
+  });
+}
+
+function drawPowerEffects(now) {
+  activePowerEffects = activePowerEffects.filter((active) => {
+    const effect = powerEffects[active.id];
+    return now < active.startedAt + effect.frames * 58;
+  });
+  activePowerEffects.forEach((active) => {
+    if (now < active.startedAt) return;
+    const effect = powerEffects[active.id];
+    const frame = Math.min(effect.frames - 1, Math.floor((now - active.startedAt) / 58));
+    const image = powerSprites[active.id][frame];
+    if (!ready(image)) return;
+    const width = effect.width * effect.scale; const height = effect.height * effect.scale;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .92;
+    ctx.drawImage(image, Math.round(active.x - width / 2), Math.round(active.y - height / 2), width, height);
+    ctx.restore();
+  });
+}
+
+function drawNpc(npc) {
+  if (!ready(assets.pcHeroIdle)) return drawEntity({ ...npc, radius: 17 }, npc.color, npc.icon, npc.name);
+  const frame = Math.floor(animationTime / 280) % 4;
+  ctx.save(); ctx.translate(npc.x, npc.y);
+  drawSprite(assets.pcHeroIdle, frame * 64, 0, 64, 64, -61, -61, 122, 122);
+  ctx.restore();
+  ctx.fillStyle = '#fff'; ctx.font = '700 10px system-ui'; ctx.textAlign = 'center'; ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 3; ctx.fillText(npc.name, npc.x, npc.y - 33); ctx.shadowBlur = 0;
+}
+
 function drawScene(timestamp) {
   const width = canvas.clientWidth; const height = canvas.clientHeight;
   if (!width || !height) return;
+  const world = worldSize();
+  camera.x = clamp(player.x - width / 2, 0, Math.max(0, world.width - width));
+  camera.y = clamp(player.y - height / 2, 0, Math.max(0, world.height - height));
   ctx.imageSmoothingEnabled = false;
-  ctx.clearRect(0, 0, width, height); drawBackground(width, height);
-  if (!activeIsland) npcs.forEach((npc) => drawEntity({ ...npc, radius: 17 }, npc.color, npc.icon, npc.name));
-  enemies.filter((enemy) => enemy.hp > 0).forEach((enemy) => drawEntity(enemy, enemy.color, enemy.icon, enemy.name, enemy.hp / enemy.maxHp));
+  ctx.clearRect(0, 0, width, height);
+  ctx.save();
+  ctx.translate(-camera.x, -camera.y);
+  drawBackground(world.width, world.height);
+  if (!activeIsland) npcs.forEach(drawNpc);
+  enemies.filter((enemy) => enemy.hp > 0).forEach((enemy, index) => drawEnemy(enemy, index));
+  drawPowerEffects(timestamp);
   drawPlayer();
   drawCompanions();
+  ctx.restore();
   if (activeIsland) {
     ctx.fillStyle = 'rgba(3, 26, 38, .78)'; ctx.fillRect(16, 16, 250, 42);
     ctx.fillStyle = '#fff'; ctx.font = '700 13px system-ui'; ctx.fillText(`${activeIsland.name} · ${enemies.filter((e) => e.hp > 0).length} inimigos`, 30, 42);
@@ -338,19 +583,22 @@ function drawScene(timestamp) {
 function drawPlayer() {
   if (playerDownUntil) return;
   const moving = keys.size > 0 || (activeIsland && autoCombat && enemies.some((enemy) => enemy.hp > 0));
-  const image = moving ? assets.walk : assets.idle;
+  const suffix = player.direction === 'side' ? 'Side' : player.direction === 'up' ? 'Up' : '';
+  const image = assets[`pcHero${moving ? 'Walk' : 'Idle'}${suffix}`] || (moving ? assets.pcHeroWalk : assets.pcHeroIdle);
   const frames = moving ? 6 : 4;
   const frame = Math.floor(animationTime / (moving ? 110 : 210)) % frames;
-  const row = player.facing < 0 ? 1 : 0;
-  const size = 56;
+  const size = 152;
   if (ready(image)) {
     ctx.save();
-    ctx.translate(player.x, player.y);
+    const attack = player.attackUntil > performance.now() ? Math.sin((1 - (player.attackUntil - performance.now()) / 260) * Math.PI) * 18 : 0;
+    ctx.translate(player.x + (player.attackDx || 0) * attack, player.y + (player.attackDy || 0) * attack);
     if (player.facing < 0) ctx.scale(-1, 1);
-    drawSprite(image, frame * 32, row * 32, 32, 32, -size / 2, -size / 2, size, size);
+    drawSprite(image, frame * 64, 0, 64, 64, -size / 2, -size / 2, size, size);
     ctx.restore();
-    ctx.fillStyle = '#fff'; ctx.font = '600 12px system-ui'; ctx.textAlign = 'center'; ctx.fillText('Você', player.x, player.y - 36);
-    drawBar(player.x - 25, player.y - 31, 50, player.hp / player.maxHp, '#5ecb76');
+    ctx.fillStyle = '#fff'; ctx.font = '700 11px system-ui'; ctx.textAlign = 'center'; ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 3; ctx.fillText('Você', player.x, player.y - 39); ctx.shadowBlur = 0;
+    drawBar(player.x - 25, player.y - 33, 50, player.hp / player.maxHp, '#5ecb76');
+    const captain = characterById('luffy');
+    drawBar(player.x - 25, player.y - 25, 50, captain.stamina / captain.maxStamina, '#56b8e7');
     return;
   }
   drawEntity(player, '#e9624f', '★', 'Você', player.hp / player.maxHp);
@@ -375,27 +623,31 @@ function companionDestination(index, target) {
 function drawCompanion(member, index, target) {
   const position = member;
   const moving = Boolean(activeIsland && target);
-  const image = moving ? assets.walk : assets.idle;
+  if (target) updateDirection(member, target.x - position.x, target.y - position.y);
+  const suffix = member.direction === 'side' ? 'Side' : member.direction === 'up' ? 'Up' : '';
+  const image = assets[`pcHero${moving ? 'Walk' : 'Idle'}${suffix}`] || (moving ? assets.pcHeroWalk : assets.pcHeroIdle);
   const frames = moving ? 6 : 4;
   const frame = Math.floor(animationTime / (moving ? 115 : 220)) % frames;
-  const facing = target ? Math.sign(target.x - position.x) || 1 : player.facing;
-  const size = 47;
+  const facing = member.facing || player.facing;
+  const size = 126;
   if (!ready(image)) return drawEntity({ ...position, radius: 14 }, outfitTints[member.color], member.icon, member.name.split(' ').at(-1));
   ctx.save();
-  ctx.translate(position.x, position.y);
+  const attack = member.attackUntil > performance.now() ? Math.sin((1 - (member.attackUntil - performance.now()) / 260) * Math.PI) * 15 : 0;
+  ctx.translate(position.x + (member.attackDx || 0) * attack, position.y + (member.attackDy || 0) * attack);
   if (facing < 0) ctx.scale(-1, 1);
-  drawSprite(image, frame * 32, 0, 32, 32, -size / 2, -size / 2, size, size);
-  ctx.globalCompositeOperation = 'source-atop';
-  ctx.globalAlpha = .45;
-  ctx.fillStyle = outfitTints[member.color];
-  ctx.fillRect(-size / 2, -size / 2, size, size);
+  drawSprite(image, frame * 64, 0, 64, 64, -size / 2, -size / 2, size, size);
   ctx.restore();
   ctx.fillStyle = '#fff'; ctx.font = '700 10px system-ui'; ctx.textAlign = 'center'; ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 3;
-  ctx.fillText(member.name.split(' ').at(-1), position.x, position.y - 31); ctx.shadowBlur = 0;
-  drawBar(position.x - 21, position.y - 26, 42, member.hp / member.maxHp, member.hp / member.maxHp > .35 ? '#63cc7b' : '#ed6c55');
+  ctx.fillText(member.name.split(' ').at(-1), position.x, position.y - 34); ctx.shadowBlur = 0;
+  drawBar(position.x - 21, position.y - 29, 42, member.hp / member.maxHp, member.hp / member.maxHp > .35 ? '#63cc7b' : '#ed6c55');
+  const character = characterById(member.id);
+  drawBar(position.x - 21, position.y - 21, 42, character.stamina / character.maxStamina, '#56b8e7');
 }
 
 function drawCompanions() {
+  // No porto, a leitura fica focada no capitão e nos NPCs. A tripulação se
+  // reúne visualmente apenas quando uma expedição começa em uma ilha.
+  if (!activeIsland) return;
   const target = activeIsland ? currentTarget() : null;
   companions.filter((member) => member.hp > 0 && !member.downUntil).forEach((member, index) => drawCompanion(member, index, target));
 }
@@ -405,7 +657,7 @@ function spawnEnemies(island) {
   enemies = Array.from({ length: island.enemies }, (_, index) => ({
     id: `${island.id}-${index}`, name: island.enemy, icon: symbols[index % symbols.length], spawnX: 500 + (index % 3) * 120, spawnY: 145 + Math.floor(index / 3) * 120,
     x: 500 + (index % 3) * 120, y: 145 + Math.floor(index / 3) * 120, radius: 17, level: island.levelMin || 1,
-    hp: (island.terrain === 'storm' ? 110 : 72) + index * 7, maxHp: (island.terrain === 'storm' ? 110 : 72) + index * 7,
+    hp: Math.round(((island.terrain === 'storm' ? 160 : 110) + index * 18) * (1 + (island.levelMin || 1) * .18)), maxHp: Math.round(((island.terrain === 'storm' ? 160 : 110) + index * 18) * (1 + (island.levelMin || 1) * .18)),
     speed: (62 + index * 4) * (hasPassive('control') ? .9 : 1), range: 34, damage: (island.terrain === 'storm' ? 5 : 3) + Math.floor(index / 3), color: island.color, cooldown: 0,
     xpReward: 12 + (island.levelMin || 1) * 3 + index * 2, berryReward: 7 + (island.levelMin || 1) * 2 + index, respawnAt: 0,
   }));
@@ -438,13 +690,10 @@ function reviveEnemies(now) {
 function enterIsland(id) {
   const nextIsland = worldIslands.find((island) => island.id === id) || islands.find((island) => island.id === id);
   if (!nextIsland) return;
-  if (nextIsland.levelMin && (playerLevel < nextIsland.levelMin || playerLevel > nextIsland.levelMax)) {
-    showToast(`${nextIsland.name} requer nível ${nextIsland.levelMin}–${nextIsland.levelMax}.`);
-    return;
-  }
   activeIsland = nextIsland;
   if (byId('islands-modal').open) byId('islands-modal').close();
   partyWiped = false; partyReviveAt = 0; playerDownUntil = 0; setDeathOverlay(false); player.x = 155; player.y = 352; player.hp = player.maxHp;
+  activePowerEffects = []; crew().forEach((member) => { member.stamina = member.maxStamina; member.skillReadyAt = [0, 0, 0]; });
   resetCompanions(); spawnEnemies(activeIsland); setDialogue(null, true); setView('jogo');
   byId('scene-kicker').textContent = 'Ilha hostil'; byId('game-title').textContent = activeIsland.name;
   byId('combat-state').textContent = 'Inimigos surgiram'; byId('quest-title').textContent = `Limpar ${activeIsland.name}`;
@@ -453,7 +702,7 @@ function enterIsland(id) {
 }
 
 function returnToPort() {
-  activeIsland = null; enemies = []; partyWiped = false; partyReviveAt = 0; playerDownUntil = 0; setDeathOverlay(false); player.x = 220; player.y = 332; player.hp = player.maxHp; resetCompanions(); updatePlayerHud();
+  activeIsland = null; enemies = []; activePowerEffects = []; partyWiped = false; partyReviveAt = 0; playerDownUntil = 0; setDeathOverlay(false); player.x = 220; player.y = 332; player.hp = player.maxHp; crew().forEach((member) => { member.stamina = member.maxStamina; }); resetCompanions(); updatePlayerHud();
   byId('scene-kicker').textContent = 'Porto Seguro'; byId('game-title').textContent = 'Cais da Aurora'; byId('combat-state').textContent = 'Explore e fale com os NPCs';
   byId('quest-title').textContent = 'Preparar a expedição'; byId('quest-copy').textContent = 'Fale com Nami no cais ou abra o mapa para navegar até uma ilha.'; byId('quest-progress').style.width = '20%';
 }
@@ -461,6 +710,8 @@ function returnToPort() {
 function updateGame(delta, now) {
   animationTime += delta * 1000;
   if (updateWipeState(now)) return;
+  recoverStamina(delta);
+  if (activeIsland && now - lastHudUpdate > 120) { updatePlayerHud(); lastHudUpdate = now; }
   if (playerDownUntil && now >= playerDownUntil) { playerDownUntil = 0; player.hp = Math.ceil(player.maxHp * .45); updatePlayerHud(); showToast('Você voltou à luta.'); }
   const movement = { x: 0, y: 0 };
   if (keys.has('w') || keys.has('arrowup')) movement.y -= 1;
@@ -468,7 +719,7 @@ function updateGame(delta, now) {
   if (keys.has('a') || keys.has('arrowleft')) movement.x -= 1;
   if (keys.has('d') || keys.has('arrowright')) movement.x += 1;
   const manualMove = movement.x || movement.y;
-  if (manualMove) { const length = Math.hypot(movement.x, movement.y); player.x += movement.x / length * player.speed * delta; player.y += movement.y / length * player.speed * delta; player.facing = movement.x || player.facing; }
+  if (manualMove) { const length = Math.hypot(movement.x, movement.y); player.x += movement.x / length * player.speed * delta; player.y += movement.y / length * player.speed * delta; updateDirection(player, movement.x, movement.y); }
 
   if (activeIsland) {
     reviveEnemies(now);
@@ -478,19 +729,23 @@ function updateGame(delta, now) {
     updateCompanions(delta, target, now);
     if (target && autoCombat && !manualMove) {
       const dx = target.x - player.x; const dy = target.y - player.y; const dist = Math.hypot(dx, dy); const attackRange = 48;
-      if (dist > attackRange) { player.x += dx / dist * player.speed * delta; player.y += dy / dist * player.speed * delta; player.facing = Math.sign(dx) || player.facing; byId('combat-state').textContent = `Aproximando de ${target.name}`; }
+      if (dist > attackRange) { player.x += dx / dist * player.speed * delta; player.y += dy / dist * player.speed * delta; updateDirection(player, dx, dy); byId('combat-state').textContent = `Aproximando de ${target.name}`; }
       else if (now - lastAttack > (hasPassive('tempo') ? 620 : 720)) {
         const captain = crew().find((member) => member.id === 'luffy') || characters.find((member) => member.id === 'luffy');
         const fightingCrew = [...(playerDownUntil ? [] : [captain]), ...companions.filter((member) => member.hp > 0 && !member.downUntil && distance(member, target) < 76)];
         const fighters = fightingCrew.length;
-        let damage = fightingCrew.reduce((sum, member) => sum + 3 + Math.floor(member.power / 550), 0) + Math.max(0, fighters - 1) * 2;
+        const combatActions = fightingCrew.map((member) => ({ member, ...useCombatSkill(member, now) }));
+        let damage = combatActions.reduce((sum, action) => sum + action.damage, 0) + Math.max(0, fighters - 1) * 2;
         if (hasPassive('captain')) damage = Math.ceil(damage * 1.08);
         if (hasPassive('execution') && target.hp / target.maxHp < .4) damage = Math.ceil(damage * 1.15);
         const critical = hasPassive('critical') && Math.random() < .12;
         if (critical) damage = Math.ceil(damage * 1.75);
         target.hp -= damage; lastAttack = now;
+        const skillFighters = combatActions.filter((action) => action.skill).map((action) => action.member);
+        triggerPowerEffects(skillFighters, target, now); triggerCombatMotion(skillFighters, target, now);
         if (hasPassive('cook')) healMostWounded(4);
-        byId('combat-state').textContent = `${fighters} tripulantes focam ${target.name} · -${damage} PV${critical ? ' · CRÍTICO!' : ''}`;
+        const skillNames = combatActions.filter((action) => action.skill).map((action) => action.skill.name).slice(0, 2).join(' · ');
+        byId('combat-state').textContent = `${fighters} tripulantes focam ${target.name} · -${damage} PV${skillNames ? ` · ${skillNames}` : ''}${critical ? ' · CRÍTICO!' : ''}`;
         if (target.hp <= 0) { target.hp = 0; target.respawnAt = now + 4500; rewardKill(target); }
       }
     }
@@ -506,6 +761,8 @@ function updateGame(delta, now) {
         let incomingDamage = enemy.damage;
         if (hasPassive('armor')) incomingDamage *= .9;
         if (hasPassive('tideguard')) incomingDamage *= .92;
+        const defender = characterById(victim.id);
+        incomingDamage /= 1 + characterDefense(defender) * .035;
         incomingDamage = Math.max(1, Math.round(incomingDamage));
         if (victim.isPlayer) {
           player.hp = Math.max(0, player.hp - incomingDamage); updatePlayerHud();
@@ -519,14 +776,21 @@ function updateGame(delta, now) {
     });
     if (!alive.length) byId('combat-state').textContent = 'Área limpa. Inimigos reaparecerão em instantes.';
   }
-  const margin = 28; player.x = clamp(player.x, margin, canvas.clientWidth - margin); player.y = clamp(player.y, margin, canvas.clientHeight - margin);
+  const world = worldSize(); const margin = 28;
+  player.x = clamp(player.x, margin, world.width - margin); player.y = clamp(player.y, margin, world.height - margin);
 }
 
 function gameLoop(now) { const delta = Math.min((now - lastFrame) / 1000, .035); lastFrame = now; updateGame(delta, now); requestAnimationFrame(gameLoop); }
 
 function characterCard(character) {
   const chosen = selected.has(character.id);
-  return `<button class="character-card ${chosen ? 'is-selected' : ''}" type="button" data-character="${character.id}" aria-pressed="${chosen}"><span class="portrait portrait-${character.color}" aria-hidden="true">${character.icon}</span><span class="character-main"><b>${character.name}</b><small>${character.role} · Nv. ${character.level}</small></span><span class="character-power">${character.power}</span><span class="tag-row">${character.tags.map((tag) => `<i>${tag}</i>`).join('')}</span><span class="skill-row">${character.skills.map((skill, index) => `<i class="${skill.kind === 'passive' ? 'is-passive' : ''}" title="${skill.description}">${skill.kind === 'passive' ? '◈' : index + 1} ${skill.name}</i>`).join('')}</span></button>`;
+  const rank = skillRank(character);
+  const skillTags = character.skills.map((skill, index) => {
+    if (skill.kind === 'passive') return `<i class="is-passive" title="${skill.description}">◈ ${skill.name}</i>`;
+    const cooldown = (skill.cooldown / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    return `<i title="${skill.description} · Nv. ${rank} · ${skill.staminaCost} EST · recarga ${cooldown}s">${index + 1} ${skill.name} · Nv.${rank}</i>`;
+  }).join('');
+  return `<button class="character-card ${chosen ? 'is-selected' : ''}" type="button" data-character="${character.id}" aria-pressed="${chosen}"><span class="portrait portrait-${character.color}" aria-hidden="true">${character.icon}</span><span class="character-main"><b>${character.name}</b><small>${character.role} · Nv. ${character.level} · ${character.experience}/${character.experienceToLevel} XP</small></span><span class="character-power">⚔ ${characterAttack(character)}</span><span class="character-stats"><i>PV ${characterMaxHp(character)}</i><i>DEF ${characterDefense(character)}</i><i>EST ${Math.ceil(character.stamina)}/${character.maxStamina}</i></span><span class="tag-row">${character.tags.map((tag) => `<i>${tag}</i>`).join('')}</span><span class="skill-row">${skillTags}</span></button>`;
 }
 
 function renderCrew() {
@@ -539,6 +803,7 @@ function renderCrew() {
 }
 
 function toggleCharacter(id) {
+  if (id === 'luffy' && selected.has(id)) return showToast('O capitão precisa permanecer na tripulação.');
   if (activeIsland) return showToast('Você não pode alterar a tripulação durante uma expedição.');
   if (selected.has(id)) selected.delete(id);
   else if (selected.size < 5) selected.add(id);
@@ -552,7 +817,7 @@ function renderMap() {
 
 function renderIslandModal() {
   byId('island-modal-list').innerHTML = worldIslands.map((island, index) => {
-    const available = playerLevel >= island.levelMin && playerLevel <= island.levelMax;
+    const available = true;
     return `<article class="modal-island-card ${available ? 'is-available' : 'is-locked'}"><span class="modal-island-number">${String(index + 1).padStart(2, '0')}</span><span class="modal-island-icon" style="background:${island.color}">${island.icon}</span><h3>${island.name}</h3><p>${island.subtitle}</p><strong class="island-level">Nv. ${island.levelMin}–${island.levelMax}</strong><button class="button ${available ? 'button-primary' : 'button-locked'}" type="button" ${available ? `data-enter-island="${island.id}"` : 'disabled'}>${available ? 'Viajar' : 'Bloqueada'}</button></article>`;
   }).join('');
 }
@@ -582,4 +847,5 @@ byId('close-islands').addEventListener('click', () => byId('islands-modal').clos
 byId('islands-modal').addEventListener('click', (event) => { if (event.target === byId('islands-modal')) byId('islands-modal').close(); });
 window.addEventListener('resize', resizeCanvas);
 
-setDeathOverlay(false); resetCompanions(); updatePlayerHud(); renderMap(); renderIslandModal(); renderCrew(); resizeCanvas(); requestAnimationFrame(drawScene); requestAnimationFrame(gameLoop);
+setDeathOverlay(false); resetCompanions(); updatePlayerHud(); renderMap(); renderIslandModal(); renderCrew();
+resizeCanvas(); requestAnimationFrame(drawScene); requestAnimationFrame(gameLoop);
