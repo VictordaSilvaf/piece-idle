@@ -1,3 +1,8 @@
+import { clamp, distance } from './core/math.js';
+import { characterAttack, characterDefense, characterMaxHp, grantExperience, skillDamageMultiplier, skillRank } from './domain/progression.js';
+import { crewAverageLevel, enemyDamage, enemyMaxHp, islandDifficulty } from './domain/islands.js';
+import { combatMonitoring } from './config/monitoring.js';
+
 const skillProfiles = [
   { cooldown: 1700, staminaCost: 18, multiplier: 1.55 },
   { cooldown: 2900, staminaCost: 28, multiplier: 2.05 },
@@ -158,6 +163,7 @@ let playerDownUntil = 0;
 let partyWiped = false;
 let partyReviveAt = 0;
 let activePowerEffects = [];
+let combatEvents = [];
 
 const player = { x: 220, y: 332, radius: 17, hp: 100, maxHp: 100, speed: 175, facing: 1, direction: 'down', isHit: 0 };
 let enemies = [];
@@ -174,17 +180,10 @@ function byId(id) { return document.getElementById(id); }
 function crew() { return characters.filter((character) => selected.has(character.id)); }
 function characterById(id) { return characters.find((character) => character.id === id); }
 function hasPassive(effect) { return crew().some((member) => member.skills.at(-1).effect === effect); }
-function distance(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
-function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function updateDirection(unit, dx, dy) { if (!dx && !dy) return; unit.direction = Math.abs(dx) > Math.abs(dy) ? 'side' : dy < 0 ? 'up' : 'down'; if (dx) unit.facing = dx < 0 ? -1 : 1; }
 function worldSize() {
   return { width: Math.max(1440, canvas.clientWidth), height: Math.max(900, canvas.clientHeight) };
 }
-function characterMaxHp(character) { return character.maxHp + (character.level - 1) * 4; }
-function characterAttack(character) { return character.attack + Math.floor((character.level - 1) * 1.35); }
-function characterDefense(character) { return character.defense + Math.floor((character.level - 1) * .35); }
-function skillRank(character) { return 1 + Math.floor((character.level - 1) / 6); }
-function skillDamageMultiplier(character, skill) { return skill.multiplier * (1 + (skillRank(character) - 1) * .11); }
 
 function syncCaptainProgress() {
   const captain = characterById('luffy');
@@ -277,15 +276,7 @@ function rewardKill(enemy) {
 }
 
 function grantCharacterExperience(character, amount) {
-  let leveledUp = false;
-  character.experience += amount;
-  while (character.experience >= character.experienceToLevel) {
-    character.experience -= character.experienceToLevel;
-    character.level += 1;
-    character.experienceToLevel = Math.floor(character.experienceToLevel * 1.14);
-    character.stamina = character.maxStamina;
-    leveledUp = true;
-  }
+  const leveledUp = grantExperience(character, amount);
   const companion = companions.find((member) => member.id === character.id);
   if (companion) {
     const previousMaxHp = companion.maxHp;
@@ -657,8 +648,8 @@ function spawnEnemies(island) {
   enemies = Array.from({ length: island.enemies }, (_, index) => ({
     id: `${island.id}-${index}`, name: island.enemy, icon: symbols[index % symbols.length], spawnX: 500 + (index % 3) * 120, spawnY: 145 + Math.floor(index / 3) * 120,
     x: 500 + (index % 3) * 120, y: 145 + Math.floor(index / 3) * 120, radius: 17, level: island.levelMin || 1,
-    hp: Math.round(((island.terrain === 'storm' ? 160 : 110) + index * 18) * (1 + (island.levelMin || 1) * .18)), maxHp: Math.round(((island.terrain === 'storm' ? 160 : 110) + index * 18) * (1 + (island.levelMin || 1) * .18)),
-    speed: (62 + index * 4) * (hasPassive('control') ? .9 : 1), range: 34, damage: (island.terrain === 'storm' ? 5 : 3) + Math.floor(index / 3), color: island.color, cooldown: 0,
+    hp: enemyMaxHp(island, index), maxHp: enemyMaxHp(island, index),
+    speed: (62 + index * 4) * (hasPassive('control') ? .9 : 1), range: 34, damage: enemyDamage(island, index), color: island.color, cooldown: 0,
     xpReward: 12 + (island.levelMin || 1) * 3 + index * 2, berryReward: 7 + (island.levelMin || 1) * 2 + index, respawnAt: 0,
   }));
 }
@@ -816,9 +807,12 @@ function renderMap() {
 }
 
 function renderIslandModal() {
+  const activeCrew = crew();
+  const averageLevel = crewAverageLevel(activeCrew);
   byId('island-modal-list').innerHTML = worldIslands.map((island, index) => {
     const available = true;
-    return `<article class="modal-island-card ${available ? 'is-available' : 'is-locked'}"><span class="modal-island-number">${String(index + 1).padStart(2, '0')}</span><span class="modal-island-icon" style="background:${island.color}">${island.icon}</span><h3>${island.name}</h3><p>${island.subtitle}</p><strong class="island-level">Nv. ${island.levelMin}–${island.levelMax}</strong><button class="button ${available ? 'button-primary' : 'button-locked'}" type="button" ${available ? `data-enter-island="${island.id}"` : 'disabled'}>${available ? 'Viajar' : 'Bloqueada'}</button></article>`;
+    const difficulty = islandDifficulty(island, averageLevel);
+    return `<article class="modal-island-card ${available ? 'is-available' : 'is-locked'} difficulty-${difficulty.id}"><span class="modal-island-number">${String(index + 1).padStart(2, '0')}</span><span class="modal-island-icon" style="background:${island.color}">${island.icon}</span><h3>${island.name}</h3><p>${island.subtitle}</p><strong class="island-level">Nv. ${island.levelMin}–${island.levelMax}</strong><span class="island-difficulty">${difficulty.label} · média Nv. ${averageLevel.toFixed(1)}</span><button class="button ${available ? 'button-primary' : 'button-locked'}" type="button" ${available ? `data-enter-island="${island.id}"` : 'disabled'}>${available ? 'Viajar' : 'Bloqueada'}</button></article>`;
   }).join('');
 }
 
