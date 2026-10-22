@@ -1,14 +1,16 @@
+const makeSkills = (active, passive) => [...active.map(([name, description]) => ({ name, description, kind: 'active' })), { ...passive, kind: 'passive' }];
+
 const characters = [
-  { id: 'luffy', name: 'Monkey D. Luffy', role: 'Capitão', icon: '☀', level: 18, power: 920, tags: ['Capitão', 'Coragem'], color: 'coral', skills: ['Pistola de Borracha', 'Chicote', 'Bazuca', 'Passiva: Vontade do Capitão'] },
-  { id: 'zoro', name: 'Roronoa Zoro', role: 'Espadachim', icon: '⚔', level: 17, power: 890, tags: ['Lâmina', 'Guardião'], color: 'moss', skills: ['Oni Giri', 'Tatsumaki', 'Purgatório', 'Passiva: Três Espadas'] },
-  { id: 'nami', name: 'Nami', role: 'Navegadora', icon: '⌁', level: 16, power: 710, tags: ['Navegador', 'Cartógrafo'], color: 'sun', skills: ['Clima-Tact', 'Mirage Tempo', 'Thunderbolt Tempo', 'Passiva: Rota Segura'] },
-  { id: 'usopp', name: 'Usopp', role: 'Atirador', icon: '◎', level: 15, power: 680, tags: ['Atirador', 'Caçador'], color: 'gold', skills: ['Tiro Explosivo', 'Estrela Verde', 'Martelo Usopp', 'Passiva: Mira Longa'] },
-  { id: 'sanji', name: 'Sanji', role: 'Cozinheiro', icon: '♨', level: 16, power: 760, tags: ['Cozinheiro', 'Chama'], color: 'blue', skills: ['Collier Shot', 'Diable Jambe', 'Concassé', 'Passiva: Cozinha de Batalha'] },
-  { id: 'chopper', name: 'Tony Tony Chopper', role: 'Médico', icon: '✚', level: 14, power: 650, tags: ['Médico', 'Suporte'], color: 'rose', skills: ['Heavy Point', 'Guard Point', 'Cura de Emergência', 'Passiva: Diagnóstico'] },
-  { id: 'robin', name: 'Nico Robin', role: 'Arqueóloga', icon: '✦', level: 15, power: 720, tags: ['Cartógrafo', 'Relíquia'], color: 'violet', skills: ['Dos Fleur', 'Clutch', 'Gigantesco Mano', 'Passiva: Leitura Poneglyph'] },
-  { id: 'franky', name: 'Franky', role: 'Carpinteiro', icon: '⚙', level: 14, power: 700, tags: ['Navio', 'Guardião'], color: 'cyan', skills: ['Strong Right', 'Franky Radical', 'Coup de Vent', 'Passiva: Reparos SUPER'] },
-  { id: 'brook', name: 'Brook', role: 'Músico', icon: '♫', level: 13, power: 610, tags: ['Músico', 'Suporte'], color: 'purple', skills: ['Soul Solid', 'Party Music', 'Flecha de Gelo', 'Passiva: Alma Gelada'] },
-  { id: 'jinbe', name: 'Jinbe', role: 'Timoneiro', icon: '≋', level: 16, power: 810, tags: ['Navegador', 'Guardião'], color: 'aqua', skills: ['Karatê dos Homens-Peixe', 'Brachial Block', 'Lança d’Água', 'Passiva: Mestre do Mar'] },
+  { id: 'luffy', name: 'Monkey D. Luffy', role: 'Capitão', icon: '☀', level: 18, power: 920, tags: ['Capitão', 'Coragem'], color: 'coral', skills: makeSkills([['Gomu Gomu no Pistol', 'Um soco elástico de longo alcance.'], ['Gomu Gomu no Gatling', 'Rajada de golpes de borracha.'], ['Gomu Gomu no Bazooka', 'Impacto duplo que lança o alvo.']], { name: 'Vontade do Capitão', description: 'Aumenta em 8% o dano de toda a tripulação.', effect: 'captain' }) },
+  { id: 'zoro', name: 'Roronoa Zoro', role: 'Espadachim', icon: '⚔', level: 17, power: 890, tags: ['Lâmina', 'Guardião'], color: 'moss', skills: makeSkills([['Oni Giri', 'Corte de três espadas em avanço.'], ['Tatsumaki', 'Tornado de lâminas que fere ao redor.'], ['Santoryu Ougi: Sanzen Sekai', 'Técnica máxima de três espadas.']], { name: 'Espírito de Espadachim', description: 'Causa 15% mais dano em inimigos abaixo de 40% de vida.', effect: 'execution' }) },
+  { id: 'nami', name: 'Nami', role: 'Navegadora', icon: '⌁', level: 16, power: 710, tags: ['Navegador', 'Cartógrafo'], color: 'sun', skills: makeSkills([['Thunderbolt Tempo', 'Raio disparado pelo Clima-Tact.'], ['Mirage Tempo', 'Miragens confundem o inimigo.'], ['Zeus Breeze Tempo', 'Descarga climática concentrada.']], { name: 'Navegadora Genial', description: 'Dá 12% de chance de a tripulação evitar um ataque.', effect: 'evasion' }) },
+  { id: 'usopp', name: 'Usopp', role: 'Atirador', icon: '◎', level: 15, power: 680, tags: ['Atirador', 'Caçador'], color: 'gold', skills: makeSkills([['Fire Bird Star', 'Projétil explosivo incendiário.'], ['Green Star: Impact Wolf', 'Planta de impacto que persegue o alvo.'], ['Pop Green: Devil', 'Planta carnívora de contenção.']], { name: 'Mira de Sniper', description: '12% de chance de o ataque coletivo causar dano crítico.', effect: 'critical' }) },
+  { id: 'sanji', name: 'Sanji', role: 'Cozinheiro', icon: '♨', level: 16, power: 760, tags: ['Cozinheiro', 'Chama'], color: 'blue', skills: makeSkills([['Diable Jambe', 'Chute incendiário que queima o alvo.'], ['Concassé', 'Sequência de chutes de alta velocidade.'], ['Hell Memories', 'Explosão de chutes com chamas.']], { name: 'Cozinheiro dos Chapéus de Palha', description: 'Após cada ataque, restaura vida do aliado mais ferido.', effect: 'cook' }) },
+  { id: 'chopper', name: 'Tony Tony Chopper', role: 'Médico', icon: '✚', level: 14, power: 650, tags: ['Médico', 'Suporte'], color: 'rose', skills: makeSkills([['Heavy Point', 'Forma de força física ampliada.'], ['Guard Point', 'Defesa em forma de fortaleza.'], ['Horn Point', 'Investida com chifres reforçados.']], { name: 'Médico da Tripulação', description: 'Regenera 2 PV por segundo para todos os aliados vivos.', effect: 'doctor' }) },
+  { id: 'robin', name: 'Nico Robin', role: 'Arqueóloga', icon: '✦', level: 15, power: 720, tags: ['Cartógrafo', 'Relíquia'], color: 'violet', skills: makeSkills([['Dos Fleur: Clutch', 'Braços extras imobilizam e quebram a guarda.'], ['Mil Fleur: Gigantesco Mano', 'Mãos gigantes esmagam o inimigo.'], ['Cien Fleur: Wing', 'Asas de braços para reposicionamento.']], { name: 'Estratégia de Arqueóloga', description: 'Reduz em 10% a velocidade dos inimigos.', effect: 'control' }) },
+  { id: 'franky', name: 'Franky', role: 'Carpinteiro', icon: '⚙', level: 14, power: 700, tags: ['Navio', 'Guardião'], color: 'cyan', skills: makeSkills([['Strong Right', 'Braço mecânico propelido por cola.'], ['Coup de Vent', 'Canhão de ar comprimido.'], ['Franky Radical Beam', 'Raio de alta potência.']], { name: 'Corpo Cyborg', description: 'Reduz em 10% o dano recebido pela tripulação.', effect: 'armor' }) },
+  { id: 'brook', name: 'Brook', role: 'Músico', icon: '♫', level: 13, power: 610, tags: ['Músico', 'Suporte'], color: 'purple', skills: makeSkills([['Soul Solid', 'Corte congelante da alma.'], ['Three Verse Humming', 'Golpe veloz antes do inimigo perceber.'], ['Party Music', 'Melodia que inspira os aliados.']], { name: 'Yomi Yomi no Mi', description: 'Reduz em 100 ms o intervalo entre ataques coletivos.', effect: 'tempo' }) },
+  { id: 'jinbe', name: 'Jinbe', role: 'Timoneiro', icon: '≋', level: 16, power: 810, tags: ['Navegador', 'Guardião'], color: 'aqua', skills: makeSkills([['Karatê dos Homens-Peixe', 'Impacto que transmite força pela água do corpo.'], ['Brachial Block', 'Defesa sólida contra golpes pesados.'], ['Vagabond Drill', 'Onda perfurante de água.']], { name: 'Mestre do Mar', description: 'Reduz em mais 8% o dano recebido pela tripulação.', effect: 'tideguard' }) },
 ];
 
 const islands = [
@@ -77,15 +79,23 @@ let activeIsland = null;
 let autoCombat = true;
 let lastFrame = 0;
 let lastAttack = 0;
+let lastPassiveTick = 0;
 let toastTimer;
 let dialogueOpen = false;
 let berries = 1250;
 let supplies = 38;
 let animationTime = 0;
-const playerLevel = 18;
+let playerLevel = 18;
+let experience = 0;
+let experienceToLevel = 160;
+let potionCount = 3;
+let playerDownUntil = 0;
+let partyWiped = false;
+let partyReviveAt = 0;
 
 const player = { x: 220, y: 332, radius: 17, hp: 100, maxHp: 100, speed: 175, facing: 1, isHit: 0 };
 let enemies = [];
+let companions = [];
 
 const npcs = [
   { id: 'nami', name: 'Nami', icon: '⌁', x: 560, y: 278, color: '#e7ad42', dialogue: 'Capitão, o mar está calmo. Abra o mapa e escolha uma ilha para iniciarmos uma expedição.', action: 'mapa', actionLabel: 'Abrir mapa' },
@@ -95,8 +105,116 @@ const npcs = [
 
 function byId(id) { return document.getElementById(id); }
 function crew() { return characters.filter((character) => selected.has(character.id)); }
+function hasPassive(effect) { return crew().some((member) => member.skills.at(-1).effect === effect); }
 function distance(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+
+function updatePlayerHud() {
+  byId('player-level').textContent = playerLevel;
+  byId('player-hp').textContent = Math.ceil(player.hp);
+  byId('player-max-hp').textContent = player.maxHp;
+  byId('player-hp-bar').style.width = `${(player.hp / player.maxHp) * 100}%`;
+  byId('player-xp').textContent = `${experience.toLocaleString('pt-BR')} / ${experienceToLevel.toLocaleString('pt-BR')}`;
+  byId('berries').textContent = berries.toLocaleString('pt-BR');
+  byId('potion-count').textContent = potionCount;
+  byId('death-potion-count').textContent = potionCount;
+}
+
+function resetCompanions() {
+  companions = crew().filter((member) => member.id !== 'luffy').slice(0, 4).map((member, index) => ({
+    ...member, x: player.x - 42 - index * 9, y: player.y + 28 + index * 8,
+    radius: 15, hp: 68 + member.level * 5, maxHp: 68 + member.level * 5,
+    speed: 142 + index * 7, cooldown: 0, downUntil: 0,
+  }));
+}
+
+function livingUnits() {
+  const captain = player.hp > 0 && !playerDownUntil ? [{ id: 'luffy', name: 'Você', ...player, isPlayer: true }] : [];
+  return [...captain, ...companions.filter((member) => member.hp > 0 && !member.downUntil)];
+}
+
+function everyoneDown() { return !livingUnits().length; }
+
+function setDeathOverlay(visible) {
+  const overlay = byId('death-overlay');
+  overlay.classList.toggle('is-visible', visible);
+  overlay.setAttribute('aria-hidden', String(!visible));
+}
+
+function reviveEntireCrew(source = 'timer') {
+  playerDownUntil = 0; player.hp = Math.ceil(player.maxHp * .55);
+  companions.forEach((member) => { member.downUntil = 0; member.hp = Math.ceil(member.maxHp * .55); member.x = player.x - 34; member.y = player.y + 28; });
+  partyWiped = false; partyReviveAt = 0; setDeathOverlay(false); updatePlayerHud();
+  showToast(source === 'potion' ? 'A poção reviveu toda a tripulação!' : 'A tripulação voltou à luta.');
+}
+
+function triggerPartyWipe(now) {
+  if (partyWiped) return;
+  partyWiped = true; partyReviveAt = now + 8000; playerDownUntil = partyReviveAt;
+  companions.forEach((member) => { member.hp = 0; member.downUntil = partyReviveAt; });
+  setDeathOverlay(true); updatePlayerHud();
+}
+
+function updateWipeState(now) {
+  if (!partyWiped) return false;
+  const remaining = Math.max(0, partyReviveAt - now);
+  byId('revive-countdown').textContent = `A tripulação revive em ${Math.ceil(remaining / 1000)}s`;
+  if (now >= partyReviveAt) reviveEntireCrew();
+  return partyWiped;
+}
+
+function usePotion() {
+  if (!activeIsland) return showToast('As poções só podem ser usadas durante uma expedição.');
+  if (potionCount <= 0) return showToast('Você não possui poções de reviver.');
+  const fallen = playerDownUntil || companions.some((member) => member.downUntil);
+  if (!fallen) return showToast('Ninguém precisa de uma poção agora.');
+  potionCount -= 1;
+  if (partyWiped) reviveEntireCrew('potion');
+  else if (playerDownUntil) { playerDownUntil = 0; player.hp = Math.ceil(player.maxHp * .5); updatePlayerHud(); showToast('Você foi revivido com a poção.'); }
+  else {
+    const member = companions.find((companion) => companion.downUntil);
+    member.downUntil = 0; member.hp = Math.ceil(member.maxHp * .5); member.x = player.x - 24; member.y = player.y + 32;
+    updatePlayerHud(); showToast(`${member.name} foi revivido com a poção.`);
+  }
+  updatePlayerHud();
+}
+
+function rewardKill(enemy) {
+  const xpGain = enemy.xpReward;
+  const berryGain = enemy.berryReward;
+  experience += xpGain;
+  berries += berryGain;
+  let levelsGained = 0;
+  while (experience >= experienceToLevel) {
+    experience -= experienceToLevel;
+    playerLevel += 1;
+    levelsGained += 1;
+    experienceToLevel = Math.floor(experienceToLevel * 1.16);
+    player.maxHp += 8;
+    player.hp = player.maxHp;
+    companions.forEach((member) => { member.maxHp += 6; member.hp = member.maxHp; });
+  }
+  updatePlayerHud();
+  showToast(`${enemy.name} derrotado! +${xpGain} XP · +${berryGain} Berries${levelsGained ? ` · Nível ${playerLevel}!` : ''}`);
+}
+
+function healMostWounded(amount) {
+  const units = livingUnits();
+  const target = units.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
+  if (!target) return;
+  if (target.isPlayer) { player.hp = Math.min(player.maxHp, player.hp + amount); updatePlayerHud(); }
+  else target.hp = Math.min(target.maxHp, target.hp + amount);
+}
+
+function applyPassiveRegeneration(now) {
+  if (!activeIsland || !hasPassive('doctor') || now - lastPassiveTick < 1000) return;
+  lastPassiveTick = now;
+  livingUnits().forEach((unit) => {
+    if (unit.isPlayer) player.hp = Math.min(player.maxHp, player.hp + 2);
+    else unit.hp = Math.min(unit.maxHp, unit.hp + 2);
+  });
+  updatePlayerHud();
+}
 
 function setView(nextView) {
   view = nextView;
@@ -218,6 +336,7 @@ function drawScene(timestamp) {
 }
 
 function drawPlayer() {
+  if (playerDownUntil) return;
   const moving = keys.size > 0 || (activeIsland && autoCombat && enemies.some((enemy) => enemy.hp > 0));
   const image = moving ? assets.walk : assets.idle;
   const frames = moving ? 6 : 4;
@@ -243,7 +362,7 @@ function currentTarget() {
   return enemies.filter((enemy) => enemy.hp > 0).sort((a, b) => distance(player, a) - distance(player, b))[0];
 }
 
-function companionPosition(index, target) {
+function companionDestination(index, target) {
   const offsets = [[-52, 29], [-62, -16], [48, 30], [60, -13]];
   if (target && distance(player, target) <= 104) {
     const angle = [-2.3, -0.9, 0.75, 2.15][index];
@@ -254,7 +373,7 @@ function companionPosition(index, target) {
 }
 
 function drawCompanion(member, index, target) {
-  const position = companionPosition(index, target);
+  const position = member;
   const moving = Boolean(activeIsland && target);
   const image = moving ? assets.walk : assets.idle;
   const frames = moving ? 6 : 4;
@@ -273,18 +392,47 @@ function drawCompanion(member, index, target) {
   ctx.restore();
   ctx.fillStyle = '#fff'; ctx.font = '700 10px system-ui'; ctx.textAlign = 'center'; ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 3;
   ctx.fillText(member.name.split(' ').at(-1), position.x, position.y - 31); ctx.shadowBlur = 0;
+  drawBar(position.x - 21, position.y - 26, 42, member.hp / member.maxHp, member.hp / member.maxHp > .35 ? '#63cc7b' : '#ed6c55');
 }
 
 function drawCompanions() {
   const target = activeIsland ? currentTarget() : null;
-  crew().filter((member) => member.id !== 'luffy').slice(0, 4).forEach((member, index) => drawCompanion(member, index, target));
+  companions.filter((member) => member.hp > 0 && !member.downUntil).forEach((member, index) => drawCompanion(member, index, target));
 }
 
 function spawnEnemies(island) {
   const symbols = island.terrain === 'mangrove' ? ['🦀', '🐍'] : island.terrain === 'storm' ? ['⚡', '☄'] : ['☠', '⚔'];
   enemies = Array.from({ length: island.enemies }, (_, index) => ({
-    id: `${island.id}-${index}`, name: island.enemy, icon: symbols[index % symbols.length], x: 500 + (index % 3) * 120, y: 145 + Math.floor(index / 3) * 120, radius: 17, hp: island.terrain === 'storm' ? 110 : 72, maxHp: island.terrain === 'storm' ? 110 : 72, speed: 62 + index * 4, range: 34, damage: island.terrain === 'storm' ? 9 : 6, color: island.color, cooldown: 0,
+    id: `${island.id}-${index}`, name: island.enemy, icon: symbols[index % symbols.length], spawnX: 500 + (index % 3) * 120, spawnY: 145 + Math.floor(index / 3) * 120,
+    x: 500 + (index % 3) * 120, y: 145 + Math.floor(index / 3) * 120, radius: 17, level: island.levelMin || 1,
+    hp: (island.terrain === 'storm' ? 110 : 72) + index * 7, maxHp: (island.terrain === 'storm' ? 110 : 72) + index * 7,
+    speed: (62 + index * 4) * (hasPassive('control') ? .9 : 1), range: 34, damage: (island.terrain === 'storm' ? 5 : 3) + Math.floor(index / 3), color: island.color, cooldown: 0,
+    xpReward: 12 + (island.levelMin || 1) * 3 + index * 2, berryReward: 7 + (island.levelMin || 1) * 2 + index, respawnAt: 0,
   }));
+}
+
+function updateCompanions(delta, target, now) {
+  companions.forEach((member, index) => {
+    if (member.downUntil) {
+      if (now >= member.downUntil) {
+        member.downUntil = 0; member.hp = Math.ceil(member.maxHp * .45); member.x = player.x - 25; member.y = player.y + 35;
+        showToast(`${member.name} voltou à luta.`);
+      }
+      return;
+    }
+    const destination = companionDestination(index, target);
+    const dx = destination.x - member.x; const dy = destination.y - member.y; const distanceToDestination = Math.hypot(dx, dy);
+    if (distanceToDestination > 3) { member.x += dx / distanceToDestination * Math.min(member.speed * delta, distanceToDestination); member.y += dy / distanceToDestination * Math.min(member.speed * delta, distanceToDestination); }
+  });
+}
+
+function reviveEnemies(now) {
+  enemies.forEach((enemy) => {
+    if (enemy.respawnAt && now >= enemy.respawnAt) {
+      enemy.respawnAt = 0; enemy.hp = enemy.maxHp; enemy.x = enemy.spawnX; enemy.y = enemy.spawnY; enemy.cooldown = 0;
+      showToast(`${enemy.name} reapareceu.`);
+    }
+  });
 }
 
 function enterIsland(id) {
@@ -296,8 +444,8 @@ function enterIsland(id) {
   }
   activeIsland = nextIsland;
   if (byId('islands-modal').open) byId('islands-modal').close();
-  player.x = 155; player.y = 352; player.hp = player.maxHp;
-  spawnEnemies(activeIsland); setDialogue(null, true); setView('jogo');
+  partyWiped = false; partyReviveAt = 0; playerDownUntil = 0; setDeathOverlay(false); player.x = 155; player.y = 352; player.hp = player.maxHp;
+  resetCompanions(); spawnEnemies(activeIsland); setDialogue(null, true); setView('jogo');
   byId('scene-kicker').textContent = 'Ilha hostil'; byId('game-title').textContent = activeIsland.name;
   byId('combat-state').textContent = 'Inimigos surgiram'; byId('quest-title').textContent = `Limpar ${activeIsland.name}`;
   byId('quest-copy').textContent = 'A formação mantém foco coletivo: todos atacam o mesmo alvo até ele ser derrotado.';
@@ -305,13 +453,15 @@ function enterIsland(id) {
 }
 
 function returnToPort() {
-  activeIsland = null; enemies = []; player.x = 220; player.y = 332; player.hp = player.maxHp;
+  activeIsland = null; enemies = []; partyWiped = false; partyReviveAt = 0; playerDownUntil = 0; setDeathOverlay(false); player.x = 220; player.y = 332; player.hp = player.maxHp; resetCompanions(); updatePlayerHud();
   byId('scene-kicker').textContent = 'Porto Seguro'; byId('game-title').textContent = 'Cais da Aurora'; byId('combat-state').textContent = 'Explore e fale com os NPCs';
   byId('quest-title').textContent = 'Preparar a expedição'; byId('quest-copy').textContent = 'Fale com Nami no cais ou abra o mapa para navegar até uma ilha.'; byId('quest-progress').style.width = '20%';
 }
 
 function updateGame(delta, now) {
   animationTime += delta * 1000;
+  if (updateWipeState(now)) return;
+  if (playerDownUntil && now >= playerDownUntil) { playerDownUntil = 0; player.hp = Math.ceil(player.maxHp * .45); updatePlayerHud(); showToast('Você voltou à luta.'); }
   const movement = { x: 0, y: 0 };
   if (keys.has('w') || keys.has('arrowup')) movement.y -= 1;
   if (keys.has('s') || keys.has('arrowdown')) movement.y += 1;
@@ -321,25 +471,53 @@ function updateGame(delta, now) {
   if (manualMove) { const length = Math.hypot(movement.x, movement.y); player.x += movement.x / length * player.speed * delta; player.y += movement.y / length * player.speed * delta; player.facing = movement.x || player.facing; }
 
   if (activeIsland) {
-    const alive = enemies.filter((enemy) => enemy.hp > 0);
+    reviveEnemies(now);
+    applyPassiveRegeneration(now);
+    const alive = enemies.filter((enemy) => enemy.hp > 0 && !enemy.respawnAt);
     const target = currentTarget();
+    updateCompanions(delta, target, now);
     if (target && autoCombat && !manualMove) {
       const dx = target.x - player.x; const dy = target.y - player.y; const dist = Math.hypot(dx, dy); const attackRange = 48;
       if (dist > attackRange) { player.x += dx / dist * player.speed * delta; player.y += dy / dist * player.speed * delta; player.facing = Math.sign(dx) || player.facing; byId('combat-state').textContent = `Aproximando de ${target.name}`; }
-      else if (now - lastAttack > 720) {
-        const party = crew();
-        const damage = party.reduce((sum, member) => sum + 3 + Math.floor(member.power / 550), 0) + Math.max(0, party.length - 1) * 2;
+      else if (now - lastAttack > (hasPassive('tempo') ? 620 : 720)) {
+        const captain = crew().find((member) => member.id === 'luffy') || characters.find((member) => member.id === 'luffy');
+        const fightingCrew = [...(playerDownUntil ? [] : [captain]), ...companions.filter((member) => member.hp > 0 && !member.downUntil && distance(member, target) < 76)];
+        const fighters = fightingCrew.length;
+        let damage = fightingCrew.reduce((sum, member) => sum + 3 + Math.floor(member.power / 550), 0) + Math.max(0, fighters - 1) * 2;
+        if (hasPassive('captain')) damage = Math.ceil(damage * 1.08);
+        if (hasPassive('execution') && target.hp / target.maxHp < .4) damage = Math.ceil(damage * 1.15);
+        const critical = hasPassive('critical') && Math.random() < .12;
+        if (critical) damage = Math.ceil(damage * 1.75);
         target.hp -= damage; lastAttack = now;
-        byId('combat-state').textContent = `${party.length} tripulantes focam ${target.name} · -${damage} PV`;
-        if (target.hp <= 0) showToast(`${target.name} derrotado pela tripulação!`);
+        if (hasPassive('cook')) healMostWounded(4);
+        byId('combat-state').textContent = `${fighters} tripulantes focam ${target.name} · -${damage} PV${critical ? ' · CRÍTICO!' : ''}`;
+        if (target.hp <= 0) { target.hp = 0; target.respawnAt = now + 4500; rewardKill(target); }
       }
     }
     alive.forEach((enemy) => {
-      const dist = distance(player, enemy);
-      if (dist > enemy.range + player.radius && dist < 180) { enemy.x += (player.x - enemy.x) / dist * enemy.speed * delta; enemy.y += (player.y - enemy.y) / dist * enemy.speed * delta; }
-      else if (dist <= enemy.range + player.radius && now - enemy.cooldown > 1200) { player.hp = Math.max(0, player.hp - enemy.damage); enemy.cooldown = now; if (player.hp <= 0) { showToast('Você foi derrotado e voltou ao porto.'); returnToPort(); } }
+      const victims = livingUnits();
+      const victim = victims.sort((a, b) => distance(a, enemy) - distance(b, enemy))[0];
+      if (!victim) return;
+      const dist = distance(victim, enemy);
+      if (dist > enemy.range + victim.radius && dist < 210) { enemy.x += (victim.x - enemy.x) / dist * enemy.speed * delta; enemy.y += (victim.y - enemy.y) / dist * enemy.speed * delta; }
+      else if (dist <= enemy.range + victim.radius && now - enemy.cooldown > 1650) {
+        enemy.cooldown = now;
+        if (hasPassive('evasion') && Math.random() < .12) { byId('combat-state').textContent = 'Mirage Tempo evitou o ataque inimigo!'; return; }
+        let incomingDamage = enemy.damage;
+        if (hasPassive('armor')) incomingDamage *= .9;
+        if (hasPassive('tideguard')) incomingDamage *= .92;
+        incomingDamage = Math.max(1, Math.round(incomingDamage));
+        if (victim.isPlayer) {
+          player.hp = Math.max(0, player.hp - incomingDamage); updatePlayerHud();
+          if (player.hp <= 0) { playerDownUntil = now + 5000; showToast('Você caiu. A tripulação ainda pode lutar.'); }
+        } else {
+          victim.hp = Math.max(0, victim.hp - incomingDamage);
+          if (victim.hp <= 0) { victim.downUntil = now + 5000; showToast(`${victim.name} caiu e voltará em alguns segundos.`); }
+        }
+        if (everyoneDown()) triggerPartyWipe(now);
+      }
     });
-    if (!alive.length) { berries += activeIsland.reward; supplies += 3; byId('berries').textContent = berries.toLocaleString('pt-BR'); byId('supplies').textContent = supplies; showToast(`Ilha conquistada! +${activeIsland.reward} Berries e +3 suprimentos.`); returnToPort(); }
+    if (!alive.length) byId('combat-state').textContent = 'Área limpa. Inimigos reaparecerão em instantes.';
   }
   const margin = 28; player.x = clamp(player.x, margin, canvas.clientWidth - margin); player.y = clamp(player.y, margin, canvas.clientHeight - margin);
 }
@@ -348,7 +526,7 @@ function gameLoop(now) { const delta = Math.min((now - lastFrame) / 1000, .035);
 
 function characterCard(character) {
   const chosen = selected.has(character.id);
-  return `<button class="character-card ${chosen ? 'is-selected' : ''}" type="button" data-character="${character.id}" aria-pressed="${chosen}"><span class="portrait portrait-${character.color}" aria-hidden="true">${character.icon}</span><span class="character-main"><b>${character.name}</b><small>${character.role} · Nv. ${character.level}</small></span><span class="character-power">${character.power}</span><span class="tag-row">${character.tags.map((tag) => `<i>${tag}</i>`).join('')}</span><span class="skill-row">${character.skills.map((skill, index) => `<i class="${index === 3 ? 'is-passive' : ''}">${index === 3 ? '◈' : index + 1} ${skill}</i>`).join('')}</span></button>`;
+  return `<button class="character-card ${chosen ? 'is-selected' : ''}" type="button" data-character="${character.id}" aria-pressed="${chosen}"><span class="portrait portrait-${character.color}" aria-hidden="true">${character.icon}</span><span class="character-main"><b>${character.name}</b><small>${character.role} · Nv. ${character.level}</small></span><span class="character-power">${character.power}</span><span class="tag-row">${character.tags.map((tag) => `<i>${tag}</i>`).join('')}</span><span class="skill-row">${character.skills.map((skill, index) => `<i class="${skill.kind === 'passive' ? 'is-passive' : ''}" title="${skill.description}">${skill.kind === 'passive' ? '◈' : index + 1} ${skill.name}</i>`).join('')}</span></button>`;
 }
 
 function renderCrew() {
@@ -365,7 +543,7 @@ function toggleCharacter(id) {
   if (selected.has(id)) selected.delete(id);
   else if (selected.size < 5) selected.add(id);
   else return showToast('A tripulação já possui cinco membros.');
-  renderCrew();
+  resetCompanions(); renderCrew();
 }
 
 function renderMap() {
@@ -393,6 +571,9 @@ document.addEventListener('click', (event) => {
   const action = event.target.closest('[data-npc-action]'); if (action) { setDialogue(null, true); setView(action.dataset.npcAction); }
 });
 byId('talk-shortcut').addEventListener('click', talk);
+byId('use-potion').addEventListener('click', usePotion);
+byId('revive-potion').addEventListener('click', usePotion);
+byId('death-return').addEventListener('click', () => { returnToPort(); showToast('A tripulação retornou ao porto para se recuperar.'); });
 byId('dialogue-close').addEventListener('click', () => setDialogue(null, true));
 document.querySelector('[data-spawn]').addEventListener('click', () => { returnToPort(); setView('jogo'); showToast('Você voltou ao Cais da Aurora.'); });
 byId('exit-game').addEventListener('click', () => { returnToPort(); setDialogue(null, true); showToast('Sessão local encerrada. Você pode recomeçar pelo Spawn.'); });
@@ -401,4 +582,4 @@ byId('close-islands').addEventListener('click', () => byId('islands-modal').clos
 byId('islands-modal').addEventListener('click', (event) => { if (event.target === byId('islands-modal')) byId('islands-modal').close(); });
 window.addEventListener('resize', resizeCanvas);
 
-renderMap(); renderIslandModal(); renderCrew(); resizeCanvas(); requestAnimationFrame(drawScene); requestAnimationFrame(gameLoop);
+setDeathOverlay(false); resetCompanions(); updatePlayerHud(); renderMap(); renderIslandModal(); renderCrew(); resizeCanvas(); requestAnimationFrame(drawScene); requestAnimationFrame(gameLoop);
