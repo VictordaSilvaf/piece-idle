@@ -1,4 +1,6 @@
-export const itemCatalog = {
+import type { ItemDefinition } from '../types/game';
+
+export const itemCatalog: Record<string, ItemDefinition> = {
   revivePotion: { id: 'revivePotion', name: 'Poção de Reviver', icon: '⚗', category: 'Consumível', description: 'Revive toda a tripulação quando todos caírem em combate.', rarity: 'uncommon' },
   seaRation: { id: 'seaRation', name: 'Ração do Mar', icon: '🍱', category: 'Suprimento', description: 'Mantimentos guardados para futuras expedições.', rarity: 'common' },
   mapFragment: { id: 'mapFragment', name: 'Fragmento de Mapa', icon: '🧭', category: 'Relíquia', description: 'Pedaço de uma rota antiga da Grand Line.', rarity: 'rare' },

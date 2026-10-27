@@ -1,4 +1,6 @@
-export const essences = {
+import type { EssenceDefinition } from '../types/game';
+
+export const essences: Record<string, EssenceDefinition> = {
   luffy: { itemId: 'essenceLeadership', name: 'Essência da Liderança', icon: '★', characterId: 'luffy' },
   zoro: { itemId: 'essenceBlade', name: 'Essência da Lâmina', icon: '⚔', characterId: 'zoro' },
   nami: { itemId: 'essenceNavigation', name: 'Essência da Navegação', icon: '⌁', characterId: 'nami' },
@@ -13,6 +15,6 @@ export const essences = {
 
 export const essenceCycle = Object.values(essences);
 
-export function essenceForCharacter(characterId) {
+export function essenceForCharacter(characterId: string): EssenceDefinition | undefined {
   return Object.values(essences).find((essence) => essence.characterId === characterId);
 }

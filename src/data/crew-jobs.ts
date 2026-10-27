@@ -1,6 +1,6 @@
-// Catálogo de cargos usados por tripulações piratas no universo de referência.
-// `formationRole` agrupa o cargo para a formação de cinco vagas do jogo.
-export const crewJobs = {
+import type { CrewJob } from '../types/game';
+
+export const crewJobs: Record<string, CrewJob> = {
   captain: { name: 'Capitão', formationRole: 'Capitão', icon: '★', description: 'Lidera a tripulação e coordena as sinergias.' },
   firstMate: { name: 'Imediato', formationRole: 'Combatente', icon: '◆', description: 'Braço direito do capitão e liderança de combate.' },
   navigator: { name: 'Navegador', formationRole: 'Navegador', icon: '⌁', description: 'Define rotas, leitura do clima e exploração.' },
@@ -17,6 +17,6 @@ export const crewJobs = {
   scholar: { name: 'Erudito', formationRole: 'Especialista', icon: '▤', description: 'Decifra história, idiomas e mecanismos.' },
 };
 
-export function getCrewJob(jobId) {
+export function getCrewJob(jobId: string): CrewJob | undefined {
   return crewJobs[jobId];
 }

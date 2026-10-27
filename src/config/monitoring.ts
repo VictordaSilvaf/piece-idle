@@ -1,4 +1,3 @@
-// Preferências de telemetria visual. Futuramente serão expostas em Configurações.
 export const combatMonitoring = {
   enabled: true,
   damage: true,
@@ -7,4 +6,4 @@ export const combatMonitoring = {
   evasion: true,
   critical: true,
   maxVisibleEvents: 18,
-};
+} as const;

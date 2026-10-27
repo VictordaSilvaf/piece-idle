@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Phaser from 'phaser';
 
 const ASSET_ROOT = 'assets/Pixel Crawler/Pixel Crawler - Free Pack';
