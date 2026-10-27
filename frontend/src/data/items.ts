@@ -1,0 +1,18 @@
+import type { ItemDefinition } from '../types/game';
+
+export const itemCatalog: Record<string, ItemDefinition> = {
+  revivePotion: { id: 'revivePotion', name: 'Poção de Reviver', icon: '⚗', category: 'Consumível', description: 'Revive toda a tripulação quando todos caírem em combate.', rarity: 'uncommon' },
+  seaRation: { id: 'seaRation', name: 'Ração do Mar', icon: '🍱', category: 'Suprimento', description: 'Mantimentos guardados para futuras expedições.', rarity: 'common' },
+  mapFragment: { id: 'mapFragment', name: 'Fragmento de Mapa', icon: '🧭', category: 'Relíquia', description: 'Pedaço de uma rota antiga da Grand Line.', rarity: 'rare' },
+  generalKey: { id: 'generalKey', name: 'Chave da Grand Line', icon: '🗝', category: 'Chave', description: 'Abre o Baú Geral da Grand Line no Recrutamento.', rarity: 'rare' },
+  essenceLeadership: { id: 'essenceLeadership', name: 'Essência da Liderança', icon: '★', category: 'Essência', description: 'Evolui o potencial de Luffy.', rarity: 'rare' },
+  essenceBlade: { id: 'essenceBlade', name: 'Essência da Lâmina', icon: '⚔', category: 'Essência', description: 'Evolui o potencial de Zoro.', rarity: 'rare' },
+  essenceNavigation: { id: 'essenceNavigation', name: 'Essência da Navegação', icon: '⌁', category: 'Essência', description: 'Evolui o potencial de Nami.', rarity: 'rare' },
+  essenceSniper: { id: 'essenceSniper', name: 'Essência do Atirador', icon: '◎', category: 'Essência', description: 'Evolui o potencial de Usopp.', rarity: 'rare' },
+  essenceCook: { id: 'essenceCook', name: 'Essência do Cozinheiro', icon: '♨', category: 'Essência', description: 'Evolui o potencial de Sanji.', rarity: 'rare' },
+  essenceHealing: { id: 'essenceHealing', name: 'Essência da Cura', icon: '✚', category: 'Essência', description: 'Evolui o potencial de Chopper.', rarity: 'rare' },
+  essenceArchaeologist: { id: 'essenceArchaeologist', name: 'Essência do Arqueólogo', icon: '✦', category: 'Essência', description: 'Evolui o potencial de Robin.', rarity: 'rare' },
+  essenceShipwright: { id: 'essenceShipwright', name: 'Essência do Carpinteiro', icon: '⚙', category: 'Essência', description: 'Evolui o potencial de Franky.', rarity: 'rare' },
+  essenceMusician: { id: 'essenceMusician', name: 'Essência do Músico', icon: '♫', category: 'Essência', description: 'Evolui o potencial de Brook.', rarity: 'rare' },
+  essenceHelmsman: { id: 'essenceHelmsman', name: 'Essência do Timoneiro', icon: '≋', category: 'Essência', description: 'Evolui o potencial de Jinbe.', rarity: 'rare' },
+};
