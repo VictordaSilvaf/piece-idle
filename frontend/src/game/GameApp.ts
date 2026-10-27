@@ -12,6 +12,8 @@ import { renderInventory, sellPriceFor } from '../ui/InventoryPanel';
 import { renderRecruitment } from '../ui/RecruitmentPanel';
 import { crewJobs, getCrewJob } from '../data/crew-jobs';
 import { essenceCycle, essenceForCharacter } from '../data/essences';
+import { gameStore } from './store/gameStore';
+import { hubPortraits as hubPortraitsData } from '../data/portraits';
 import { createCharacterRoster } from '../data/characters';
 import { CrewRoster } from './CrewRoster';
 import { Inventory } from '../domain/inventory';
@@ -21,8 +23,23 @@ import { RecruitmentSystem } from '../domain/recruitment';
  * Fachada OOP do cliente: concentra estado de sessão e orquestra HUD, combate e mundo.
  * Regras de domínio (Inventário, Personagem, Recrutamento, Boost, Ilhas) vivem em classes próprias.
  */
+export type GameHostApi = {
+  setView: (view: string) => void;
+  openInventory: () => void;
+  closeInventory: () => void;
+  openIslands: () => void;
+  closeIslands: () => void;
+  closeUpgrade: () => void;
+  attackOrTalk: () => void;
+  usePotion: () => void;
+  returnToPort: () => void;
+  closeDialogue: () => void;
+  goPorto: () => void;
+  resize: () => void;
+};
+
 export class GameApp {
-  start(): void {
+  start(options: { canvas?: HTMLCanvasElement } = {}): GameHostApi {
     const characters = createCharacterRoster();
     const roster = new CrewRoster(
       characters,
@@ -74,8 +91,10 @@ export class GameApp {
 
     const selected = roster.selected;
     const recruitedCharacterIds = roster.recruited;
-    const canvas = document.getElementById('game-canvas');
+    const canvas = options.canvas || document.getElementById('game-canvas');
+    if (!canvas) throw new Error('Canvas do jogo não encontrado');
     const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Contexto 2D indisponível');
     const assetPaths = {
       pcHeroIdle: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Entities/Characters/Body_A/Animations/Idle_Base/Idle_Down-Sheet.png',
       pcHeroWalk: 'assets/Pixel Crawler/Pixel Crawler - Free Pack/Entities/Characters/Body_A/Animations/Walk_Base/Walk_Down-Sheet.png',
@@ -193,18 +212,7 @@ export class GameApp {
       player.maxHp = characterMaxHp(captain); player.hp = clamp(player.hp, 0, player.maxHp);
     }
 
-    const hubPortraits = {
-      luffy: 'assets/hub/processed/portrait-luffy.png',
-      zoro: 'assets/hub/processed/portrait-zoro.png',
-      nami: 'assets/hub/processed/portrait-nami.png',
-      usopp: 'assets/hub/processed/portrait-usopp.png',
-      sanji: 'assets/hub/processed/portrait-sanji.png',
-      chopper: 'assets/hub/processed/portrait-chopper.png',
-      robin: 'assets/hub/processed/portrait-robin.png',
-      franky: 'assets/hub/processed/portrait-franky.png',
-      brook: 'assets/hub/processed/portrait-brook.png',
-      jinbe: 'assets/hub/processed/portrait-jinbe.png',
-    };
+    const hubPortraits = hubPortraitsData;
 
     function portraitFor(character) {
       const source = hubPortraits[character.id];
@@ -230,35 +238,14 @@ export class GameApp {
       return units;
     }
 
-    function renderPartyHud(now = performance.now()) {
-      const party = byId('hub-party');
-      if (!party) return;
-      party.innerHTML = partyHudUnits().map((unit) => {
-        const down = Boolean(unit.downUntil) || unit.hp <= 0;
-        const hp = Math.max(0, Math.ceil(unit.hp));
-        const maxHp = Math.max(1, unit.maxHp);
-        const sp = Math.max(0, Math.ceil(unit.stamina));
-        const maxSp = Math.max(1, unit.maxStamina);
-        const portrait = portraitFor(unit);
-        return `<article class="hub-member ${down ? 'is-down' : ''}" data-hub-member="${unit.id}">
-          <img class="hub-plate" src="assets/hub/processed/party-plate.png" alt="" aria-hidden="true" />
-          <div class="hub-portrait">${portrait}</div>
-          <div class="hub-member-body">
-            <strong>${unit.name}</strong>
-            <div class="hub-stat hub-stat-hp"><span><i style="width:${(hp / maxHp) * 100}%"></i><em>${hp}/${maxHp}</em></span></div>
-            <div class="hub-stat hub-stat-sp"><span><i style="width:${(sp / maxSp) * 100}%"></i><em>${sp}/${maxSp}</em></span></div>
-          </div>
-        </article>`;
-      }).join('');
+    function renderPartyHud(_now = performance.now()) {
+      gameStore.patch({ party: partyHudUnits().map((unit) => ({ ...unit })) });
     }
 
     function setHubLocation(label) {
+      gameStore.patch({ locationLabel: label, locationHidden: Boolean(activeIsland) });
       const el = byId('hub-location-label');
       if (el) el.setAttribute('alt', label);
-
-      // A placa é parte do hub do porto; as ilhas usam apenas o cenário jogável.
-      const sign = el?.closest('.hub-location');
-      if (sign) sign.hidden = Boolean(activeIsland);
     }
 
     function syncHubNav(activeView = view) {
@@ -276,18 +263,31 @@ export class GameApp {
     function updatePlayerHud() {
       syncCaptainProgress();
       const captain = characterById('luffy');
-      byId('player-level').textContent = `${playerLevel}/${MAX_CHARACTER_LEVEL}`;
-      byId('player-hp').textContent = Math.ceil(player.hp);
-      byId('player-max-hp').textContent = player.maxHp;
-      byId('player-hp-bar').style.width = `${(player.hp / player.maxHp) * 100}%`;
-      byId('player-stamina').textContent = Math.ceil(captain.stamina);
-      byId('player-stamina-bar').style.width = `${(captain.stamina / captain.maxStamina) * 100}%`;
-      byId('player-xp').textContent = playerLevel >= MAX_CHARACTER_LEVEL ? 'Nível máximo' : `${experience.toLocaleString('pt-BR')} / ${experienceToLevel.toLocaleString('pt-BR')}`;
-      byId('berries').textContent = berries.toLocaleString('pt-BR');
+      const setText = (id, value) => { const el = byId(id); if (el) el.textContent = value; };
+      const setWidth = (id, value) => { const el = byId(id); if (el) el.style.width = value; };
+      setText('player-level', `${playerLevel}/${MAX_CHARACTER_LEVEL}`);
+      setText('player-hp', Math.ceil(player.hp));
+      setText('player-max-hp', player.maxHp);
+      setWidth('player-hp-bar', `${(player.hp / player.maxHp) * 100}%`);
+      setText('player-stamina', Math.ceil(captain.stamina));
+      setWidth('player-stamina-bar', `${(captain.stamina / captain.maxStamina) * 100}%`);
+      setText('player-xp', playerLevel >= MAX_CHARACTER_LEVEL ? 'Nível máximo' : `${experience.toLocaleString('pt-BR')} / ${experienceToLevel.toLocaleString('pt-BR')}`);
+      setText('berries', berries.toLocaleString('pt-BR'));
       const potionCount = itemQuantity(inventory, 'revivePotion');
-      byId('potion-count').textContent = potionCount;
-      byId('death-potion-count').textContent = potionCount;
+      if (byId('potion-count')) byId('potion-count').textContent = potionCount;
+      if (byId('death-potion-count')) byId('death-potion-count').textContent = potionCount;
       renderPartyHud();
+      gameStore.patch({
+        berries,
+        potionCount,
+        playerLevel,
+        playerHp: player.hp,
+        playerMaxHp: player.maxHp,
+        playerStamina: captain.stamina,
+        playerMaxStamina: captain.maxStamina,
+        playerXpLabel: playerLevel >= MAX_CHARACTER_LEVEL ? 'Nível máximo' : `${experience.toLocaleString('pt-BR')} / ${experienceToLevel.toLocaleString('pt-BR')}`,
+        partyWiped,
+      });
     }
 
     function resetCompanions() {
@@ -306,7 +306,9 @@ export class GameApp {
     function everyoneDown() { return !livingUnits().length; }
 
     function setDeathOverlay(visible) {
+      gameStore.patch({ partyWiped: visible });
       const overlay = byId('death-overlay');
+      if (!overlay) return;
       overlay.classList.toggle('is-visible', visible);
       overlay.setAttribute('aria-hidden', String(!visible));
     }
@@ -427,6 +429,7 @@ export class GameApp {
 
     function setView(nextView) {
       view = nextView;
+      gameStore.patch({ view: nextView });
       document.querySelectorAll('[data-view-panel]').forEach((panel) => panel.classList.toggle('is-active', panel.dataset.viewPanel === nextView));
       document.querySelectorAll('.nav-link').forEach((button) => button.classList.toggle('is-active', button.dataset.view === nextView));
       syncHubNav(nextView);
@@ -446,7 +449,9 @@ export class GameApp {
     }
 
     function showToast(message) {
+      gameStore.setToast(message);
       const toast = byId('toast');
+      if (!toast) return;
       toast.textContent = message;
       toast.classList.add('is-visible');
       clearTimeout(toastTimer);
@@ -472,11 +477,16 @@ export class GameApp {
     function setDialogue(npc, force = false) {
       if (!npc && !force) return;
       dialogueOpen = Boolean(npc);
-      byId('dialogue-panel').classList.toggle('is-open', Boolean(npc));
+      const panel = byId('dialogue-panel');
+      if (panel) panel.classList.toggle('is-open', Boolean(npc));
       if (npc) {
-        byId('npc-seal').textContent = npc.icon;
-        byId('dialogue-name').textContent = npc.name;
-        byId('dialogue-text').innerHTML = `${npc.dialogue} <button class="inline-action" data-npc-action="${npc.action}" type="button">${npc.actionLabel} →</button>`;
+        const text = `${npc.dialogue} <button class="inline-action" data-npc-action="${npc.action}" type="button">${npc.actionLabel} →</button>`;
+        gameStore.patch({ dialogueOpen: true, dialogue: { icon: npc.icon, name: npc.name, text } });
+        if (byId('npc-seal')) byId('npc-seal').textContent = npc.icon;
+        if (byId('dialogue-name')) byId('dialogue-name').textContent = npc.name;
+        if (byId('dialogue-text')) byId('dialogue-text').innerHTML = text;
+      } else {
+        gameStore.patch({ dialogueOpen: false, dialogue: null });
       }
     }
 
@@ -1067,7 +1077,9 @@ export class GameApp {
       if (!character) return;
       upgradeTab = 'boost';
       renderCharUpgrade(character);
-      byId('char-upgrade-modal').showModal();
+      gameStore.patch({ upgradeOpen: true });
+      const modal = byId('char-upgrade-modal');
+      if (modal && !modal.open) modal.showModal();
     }
 
     function renderCrew() {
@@ -1144,14 +1156,41 @@ export class GameApp {
 
     function openInventory() {
       refreshInventory();
-      byId('inventory-modal').showModal();
+      gameStore.patch({ inventoryOpen: true });
+      const modal = byId('inventory-modal');
+      if (modal && !modal.open) modal.showModal();
       syncHubNav();
+    }
+
+    function closeInventory() {
+      const modal = byId('inventory-modal');
+      if (modal?.open) modal.close();
+      gameStore.patch({ inventoryOpen: false });
+      syncHubNav();
+    }
+
+    function openIslands() {
+      renderIslandModal();
+      gameStore.patch({ islandsOpen: true });
+      const modal = byId('islands-modal');
+      if (modal && !modal.open) modal.showModal();
+    }
+
+    function closeIslands() {
+      const modal = byId('islands-modal');
+      if (modal?.open) modal.close();
+      gameStore.patch({ islandsOpen: false });
+    }
+
+    function closeUpgrade() {
+      const modal = byId('char-upgrade-modal');
+      if (modal?.open) modal.close();
+      gameStore.patch({ upgradeOpen: false });
     }
 
     function handleInventoryAction(action, itemId) {
       if (action === 'back') {
-        byId('inventory-modal').close();
-        syncHubNav();
+        closeInventory();
         return;
       }
       const item = itemCatalog[itemId];
@@ -1253,46 +1292,47 @@ export class GameApp {
       const islandButton = event.target.closest('[data-enter-island]'); if (islandButton) enterIsland(islandButton.dataset.enterIsland);
       const action = event.target.closest('[data-npc-action]'); if (action) { setDialogue(null, true); setView(action.dataset.npcAction); }
     });
-    byId('crew-details-btn').addEventListener('click', () => {
+    byId('crew-details-btn')?.addEventListener('click', () => {
       crewSwapOpen = false;
       crewSummaryOpen = true;
       renderCrew();
       openCharUpgrade();
     });
-    byId('crew-swap-btn').addEventListener('click', () => {
+    byId('crew-swap-btn')?.addEventListener('click', () => {
       crewSwapOpen = !crewSwapOpen;
       crewSummaryOpen = false;
       renderCrew();
     });
-    byId('crew-roster-close').addEventListener('click', () => {
+    byId('crew-roster-close')?.addEventListener('click', () => {
       crewSwapOpen = false;
       renderCrew();
     });
-    byId('char-upgrade-modal').addEventListener('click', (event) => {
+    byId('char-upgrade-modal')?.addEventListener('click', (event) => {
       if (event.target === byId('char-upgrade-modal')) byId('char-upgrade-modal').close();
     });
-    byId('use-potion').addEventListener('click', usePotion);
-    byId('revive-potion').addEventListener('click', usePotion);
-    byId('death-return').addEventListener('click', () => { returnToPort(); showToast('A tripulação retornou ao porto para se recuperar.'); });
-    byId('dialogue-close').addEventListener('click', () => setDialogue(null, true));
-    byId('hub-attack').addEventListener('click', () => {
+    byId('use-potion')?.addEventListener('click', usePotion);
+    byId('revive-potion')?.addEventListener('click', usePotion);
+    byId('death-return')?.addEventListener('click', () => { returnToPort(); showToast('A tripulação retornou ao porto para se recuperar.'); });
+    byId('dialogue-close')?.addEventListener('click', () => setDialogue(null, true));
+    byId('hub-attack')?.addEventListener('click', () => {
       if (view !== 'jogo') setView('jogo');
       if (activeIsland) showToast('Combate automático ativo: a tripulação foca o inimigo mais próximo.');
       else talk();
     });
-    byId('hub-explore').addEventListener('click', () => byId('islands-modal').showModal());
-    byId('hub-inventory').addEventListener('click', openInventory);
+    byId('hub-explore')?.addEventListener('click', () => openIslands());
+    byId('hub-inventory')?.addEventListener('click', openInventory);
     document.querySelectorAll('[data-hub-action]').forEach((button) => {
       button.addEventListener('click', () => {
         const action = button.dataset.hubAction;
         if (action === 'porto') { returnToPort(); setView('jogo'); showToast('Você voltou ao Cais da Aurora.'); return; }
-        if (action === 'explorar') { byId('islands-modal').showModal(); syncHubNav(); return; }
-        if (action === 'inventario' || action === 'conta') { openInventory(); syncHubNav(); return; }
+        if (action === 'explorar') { openIslands(); return; }
+        if (action === 'inventario' || action === 'conta') { openInventory(); return; }
       });
     });
-    byId('close-islands').addEventListener('click', () => byId('islands-modal').close());
-    byId('islands-modal').addEventListener('click', (event) => { if (event.target === byId('islands-modal')) byId('islands-modal').close(); });
-    byId('inventory-content').addEventListener('click', (event) => {
+    byId('close-islands')?.addEventListener('click', () => closeIslands());
+    byId('islands-modal')?.addEventListener('click', (event) => { if (event.target === byId('islands-modal')) closeIslands(); });
+    byId('islands-modal')?.addEventListener('close', () => gameStore.patch({ islandsOpen: false }));
+    byId('inventory-content')?.addEventListener('click', (event) => {
       const select = event.target.closest('[data-inv-select]');
       if (select) {
         inventoryUi.selectedId = select.dataset.invSelect;
@@ -1309,18 +1349,31 @@ export class GameApp {
       const action = event.target.closest('[data-inv-action]');
       if (action) handleInventoryAction(action.dataset.invAction, action.dataset.item);
     });
-    byId('inventory-modal').addEventListener('click', (event) => { if (event.target === byId('inventory-modal')) { byId('inventory-modal').close(); syncHubNav(); } });
-    byId('inventory-modal').addEventListener('close', () => syncHubNav());
+    byId('inventory-modal')?.addEventListener('click', (event) => { if (event.target === byId('inventory-modal')) closeInventory(); });
+    byId('inventory-modal')?.addEventListener('close', () => { gameStore.patch({ inventoryOpen: false }); syncHubNav(); });
+    byId('char-upgrade-modal')?.addEventListener('close', () => gameStore.patch({ upgradeOpen: false }));
     window.addEventListener('resize', resizeCanvas);
 
     setDeathOverlay(false); resetCompanions(); setHubLocation('Cais da Aurora'); updatePlayerHud(); renderMap(); renderIslandModal(); renderCrew(); syncHubNav();
     resizeCanvas(); requestAnimationFrame(drawScene); requestAnimationFrame(gameLoop);
 
+    return {
+      setView,
+      openInventory,
+      closeInventory,
+      openIslands,
+      closeIslands,
+      closeUpgrade,
+      attackOrTalk: () => {
+        if (view !== 'jogo') setView('jogo');
+        if (activeIsland) showToast('Combate automático ativo: a tripulação foca o inimigo mais próximo.');
+        else talk();
+      },
+      usePotion,
+      returnToPort: () => { returnToPort(); showToast('A tripulação retornou ao porto para se recuperar.'); },
+      closeDialogue: () => setDialogue(null, true),
+      goPorto: () => { returnToPort(); setView('jogo'); showToast('Você voltou ao Cais da Aurora.'); },
+      resize: resizeCanvas,
+    };
   }
-}
-
-export function bootstrapGame(): GameApp {
-  const game = new GameApp();
-  game.start();
-  return game;
 }
