@@ -1,7 +1,16 @@
 import { clamp, distance } from './core/math.js';
-import { characterAttack, characterDefense, characterMaxHp, grantExperience, skillDamageMultiplier, skillRank } from './domain/progression.js';
+import { characterAttack, characterDefense, characterMaxHp, grantExperience, MAX_CHARACTER_LEVEL, skillDamageMultiplier, skillRank } from './domain/progression.js';
 import { crewAverageLevel, enemyDamage, enemyMaxHp, islandDifficulty } from './domain/islands.js';
+import { BOOST_MAX_LEVEL, applyBoost, boostUpgradeCost, essenceDropChance } from './domain/boost.js';
 import { combatMonitoring } from './config/monitoring.js';
+import { itemCatalog } from './data/items.js';
+import { characterRarities, chestCatalog } from './data/recruitment.js';
+import { addItem, consumeItem, createInventory, itemQuantity } from './domain/inventory.js';
+import { createRecruitmentState, rollRecruit } from './domain/recruitment.js';
+import { renderInventory, sellPriceFor } from './ui/inventory-panel.js';
+import { renderRecruitment } from './ui/recruitment-panel.js';
+import { crewJobs, getCrewJob } from './data/crew-jobs.js';
+import { essenceCycle, essenceForCharacter } from './data/essences.js';
 
 const skillProfiles = [
   { cooldown: 1700, staminaCost: 18, multiplier: 1.55 },
@@ -11,17 +20,18 @@ const skillProfiles = [
 const makeSkills = (active, passive) => [...active.map(([name, description], index) => ({ name, description, kind: 'active', ...skillProfiles[index] })), { ...passive, kind: 'passive' }];
 
 const characters = [
-  { id: 'luffy', name: 'Monkey D. Luffy', role: 'Capitão', icon: '☀', level: 18, power: 920, tags: ['Capitão', 'Coragem'], color: 'coral', skills: makeSkills([['Gomu Gomu no Pistol', 'Um soco elástico de longo alcance.'], ['Gomu Gomu no Gatling', 'Rajada de golpes de borracha.'], ['Gomu Gomu no Bazooka', 'Impacto duplo que lança o alvo.']], { name: 'Vontade do Capitão', description: 'Aumenta em 8% o dano de toda a tripulação.', effect: 'captain' }) },
-  { id: 'zoro', name: 'Roronoa Zoro', role: 'Espadachim', icon: '⚔', level: 17, power: 890, tags: ['Lâmina', 'Guardião'], color: 'moss', skills: makeSkills([['Oni Giri', 'Corte de três espadas em avanço.'], ['Tatsumaki', 'Tornado de lâminas que fere ao redor.'], ['Santoryu Ougi: Sanzen Sekai', 'Técnica máxima de três espadas.']], { name: 'Espírito de Espadachim', description: 'Causa 15% mais dano em inimigos abaixo de 40% de vida.', effect: 'execution' }) },
-  { id: 'nami', name: 'Nami', role: 'Navegadora', icon: '⌁', level: 16, power: 710, tags: ['Navegador', 'Cartógrafo'], color: 'sun', skills: makeSkills([['Thunderbolt Tempo', 'Raio disparado pelo Clima-Tact.'], ['Mirage Tempo', 'Miragens confundem o inimigo.'], ['Zeus Breeze Tempo', 'Descarga climática concentrada.']], { name: 'Navegadora Genial', description: 'Dá 12% de chance de a tripulação evitar um ataque.', effect: 'evasion' }) },
-  { id: 'usopp', name: 'Usopp', role: 'Atirador', icon: '◎', level: 15, power: 680, tags: ['Atirador', 'Caçador'], color: 'gold', skills: makeSkills([['Fire Bird Star', 'Projétil explosivo incendiário.'], ['Green Star: Impact Wolf', 'Planta de impacto que persegue o alvo.'], ['Pop Green: Devil', 'Planta carnívora de contenção.']], { name: 'Mira de Sniper', description: '12% de chance de o ataque coletivo causar dano crítico.', effect: 'critical' }) },
-  { id: 'sanji', name: 'Sanji', role: 'Cozinheiro', icon: '♨', level: 16, power: 760, tags: ['Cozinheiro', 'Chama'], color: 'blue', skills: makeSkills([['Diable Jambe', 'Chute incendiário que queima o alvo.'], ['Concassé', 'Sequência de chutes de alta velocidade.'], ['Hell Memories', 'Explosão de chutes com chamas.']], { name: 'Cozinheiro dos Chapéus de Palha', description: 'Após cada ataque, restaura vida do aliado mais ferido.', effect: 'cook' }) },
-  { id: 'chopper', name: 'Tony Tony Chopper', role: 'Médico', icon: '✚', level: 14, power: 650, tags: ['Médico', 'Suporte'], color: 'rose', skills: makeSkills([['Heavy Point', 'Forma de força física ampliada.'], ['Guard Point', 'Defesa em forma de fortaleza.'], ['Horn Point', 'Investida com chifres reforçados.']], { name: 'Médico da Tripulação', description: 'Regenera 2 PV por segundo para todos os aliados vivos.', effect: 'doctor' }) },
-  { id: 'robin', name: 'Nico Robin', role: 'Arqueóloga', icon: '✦', level: 15, power: 720, tags: ['Cartógrafo', 'Relíquia'], color: 'violet', skills: makeSkills([['Dos Fleur: Clutch', 'Braços extras imobilizam e quebram a guarda.'], ['Mil Fleur: Gigantesco Mano', 'Mãos gigantes esmagam o inimigo.'], ['Cien Fleur: Wing', 'Asas de braços para reposicionamento.']], { name: 'Estratégia de Arqueóloga', description: 'Reduz em 10% a velocidade dos inimigos.', effect: 'control' }) },
-  { id: 'franky', name: 'Franky', role: 'Carpinteiro', icon: '⚙', level: 14, power: 700, tags: ['Navio', 'Guardião'], color: 'cyan', skills: makeSkills([['Strong Right', 'Braço mecânico propelido por cola.'], ['Coup de Vent', 'Canhão de ar comprimido.'], ['Franky Radical Beam', 'Raio de alta potência.']], { name: 'Corpo Cyborg', description: 'Reduz em 10% o dano recebido pela tripulação.', effect: 'armor' }) },
-  { id: 'brook', name: 'Brook', role: 'Músico', icon: '♫', level: 13, power: 610, tags: ['Músico', 'Suporte'], color: 'purple', skills: makeSkills([['Soul Solid', 'Corte congelante da alma.'], ['Three Verse Humming', 'Golpe veloz antes do inimigo perceber.'], ['Party Music', 'Melodia que inspira os aliados.']], { name: 'Yomi Yomi no Mi', description: 'Reduz em 100 ms o intervalo entre ataques coletivos.', effect: 'tempo' }) },
-  { id: 'jinbe', name: 'Jinbe', role: 'Timoneiro', icon: '≋', level: 16, power: 810, tags: ['Navegador', 'Guardião'], color: 'aqua', skills: makeSkills([['Karatê dos Homens-Peixe', 'Impacto que transmite força pela água do corpo.'], ['Brachial Block', 'Defesa sólida contra golpes pesados.'], ['Vagabond Drill', 'Onda perfurante de água.']], { name: 'Mestre do Mar', description: 'Reduz em mais 8% o dano recebido pela tripulação.', effect: 'tideguard' }) },
+  { id: 'luffy', jobId: 'captain', name: 'Monkey D. Luffy', role: 'Capitão', icon: '☀', level: 18, power: 920, tags: ['Capitão', 'Coragem'], color: 'coral', skills: makeSkills([['Gomu Gomu no Pistol', 'Um soco elástico de longo alcance.'], ['Gomu Gomu no Gatling', 'Rajada de golpes de borracha.'], ['Gomu Gomu no Bazooka', 'Impacto duplo que lança o alvo.']], { name: 'Vontade do Capitão', description: 'Aumenta em 8% o dano de toda a tripulação.', effect: 'captain' }) },
+  { id: 'zoro', jobId: 'swordsman', name: 'Roronoa Zoro', role: 'Espadachim', icon: '⚔', level: 17, power: 890, tags: ['Lâmina', 'Guardião'], color: 'moss', skills: makeSkills([['Oni Giri', 'Corte de três espadas em avanço.'], ['Tatsumaki', 'Tornado de lâminas que fere ao redor.'], ['Santoryu Ougi: Sanzen Sekai', 'Técnica máxima de três espadas.']], { name: 'Espírito de Espadachim', description: 'Causa 15% mais dano em inimigos abaixo de 40% de vida.', effect: 'execution' }) },
+  { id: 'nami', jobId: 'navigator', name: 'Nami', role: 'Navegadora', icon: '⌁', level: 16, power: 710, tags: ['Navegador', 'Cartógrafo'], color: 'sun', skills: makeSkills([['Thunderbolt Tempo', 'Raio disparado pelo Clima-Tact.'], ['Mirage Tempo', 'Miragens confundem o inimigo.'], ['Zeus Breeze Tempo', 'Descarga climática concentrada.']], { name: 'Navegadora Genial', description: 'Dá 12% de chance de a tripulação evitar um ataque.', effect: 'evasion' }) },
+  { id: 'usopp', jobId: 'sniper', name: 'Usopp', role: 'Atirador', icon: '◎', level: 15, power: 680, tags: ['Atirador', 'Caçador'], color: 'gold', skills: makeSkills([['Fire Bird Star', 'Projétil explosivo incendiário.'], ['Green Star: Impact Wolf', 'Planta de impacto que persegue o alvo.'], ['Pop Green: Devil', 'Planta carnívora de contenção.']], { name: 'Mira de Sniper', description: '12% de chance de o ataque coletivo causar dano crítico.', effect: 'critical' }) },
+  { id: 'sanji', jobId: 'cook', name: 'Sanji', role: 'Cozinheiro', icon: '♨', level: 16, power: 760, tags: ['Cozinheiro', 'Chama'], color: 'blue', skills: makeSkills([['Diable Jambe', 'Chute incendiário que queima o alvo.'], ['Concassé', 'Sequência de chutes de alta velocidade.'], ['Hell Memories', 'Explosão de chutes com chamas.']], { name: 'Cozinheiro dos Chapéus de Palha', description: 'Após cada ataque, restaura vida do aliado mais ferido.', effect: 'cook' }) },
+  { id: 'chopper', jobId: 'doctor', name: 'Tony Tony Chopper', role: 'Médico', icon: '✚', level: 14, power: 650, tags: ['Médico', 'Suporte'], color: 'rose', skills: makeSkills([['Heavy Point', 'Forma de força física ampliada.'], ['Guard Point', 'Defesa em forma de fortaleza.'], ['Horn Point', 'Investida com chifres reforçados.']], { name: 'Médico da Tripulação', description: 'Regenera 2 PV por segundo para todos os aliados vivos.', effect: 'doctor' }) },
+  { id: 'robin', jobId: 'archaeologist', name: 'Nico Robin', role: 'Arqueóloga', icon: '✦', level: 15, power: 720, tags: ['Cartógrafo', 'Relíquia'], color: 'violet', skills: makeSkills([['Dos Fleur: Clutch', 'Braços extras imobilizam e quebram a guarda.'], ['Mil Fleur: Gigantesco Mano', 'Mãos gigantes esmagam o inimigo.'], ['Cien Fleur: Wing', 'Asas de braços para reposicionamento.']], { name: 'Estratégia de Arqueóloga', description: 'Reduz em 10% a velocidade dos inimigos.', effect: 'control' }) },
+  { id: 'franky', jobId: 'shipwright', name: 'Franky', role: 'Carpinteiro Naval', icon: '⚙', level: 14, power: 700, tags: ['Navio', 'Guardião'], color: 'cyan', skills: makeSkills([['Strong Right', 'Braço mecânico propelido por cola.'], ['Coup de Vent', 'Canhão de ar comprimido.'], ['Franky Radical Beam', 'Raio de alta potência.']], { name: 'Corpo Cyborg', description: 'Reduz em 10% o dano recebido pela tripulação.', effect: 'armor' }) },
+  { id: 'brook', jobId: 'musician', name: 'Brook', role: 'Músico', icon: '♫', level: 13, power: 610, tags: ['Músico', 'Suporte'], color: 'purple', skills: makeSkills([['Soul Solid', 'Corte congelante da alma.'], ['Three Verse Humming', 'Golpe veloz antes do inimigo perceber.'], ['Party Music', 'Melodia que inspira os aliados.']], { name: 'Yomi Yomi no Mi', description: 'Reduz em 100 ms o intervalo entre ataques coletivos.', effect: 'tempo' }) },
+  { id: 'jinbe', jobId: 'helmsman', name: 'Jinbe', role: 'Timoneiro', icon: '≋', level: 16, power: 810, tags: ['Navegador', 'Guardião'], color: 'aqua', skills: makeSkills([['Karatê dos Homens-Peixe', 'Impacto que transmite força pela água do corpo.'], ['Brachial Block', 'Defesa sólida contra golpes pesados.'], ['Vagabond Drill', 'Onda perfurante de água.']], { name: 'Mestre do Mar', description: 'Reduz em mais 8% o dano recebido pela tripulação.', effect: 'tideguard' }) },
 ];
+characters.forEach((character) => { character.rarity = characterRarities[character.id]; });
 
 const characterStatSeeds = {
   luffy: [108, 24, 7, 100, 13], zoro: [122, 27, 9, 82, 9], nami: [82, 20, 4, 112, 15], usopp: [78, 22, 4, 106, 12], sanji: [98, 25, 6, 94, 12],
@@ -29,7 +39,7 @@ const characterStatSeeds = {
 };
 characters.forEach((character) => {
   const [maxHp, attack, defense, maxStamina, staminaRegen] = characterStatSeeds[character.id];
-  Object.assign(character, { maxHp, attack, defense, maxStamina, stamina: maxStamina, staminaRegen, experience: 0, experienceToLevel: 120 + character.level * 12, skillReadyAt: [0, 0, 0] });
+  Object.assign(character, { maxHp, attack, defense, maxStamina, stamina: maxStamina, staminaRegen, experience: 0, experienceToLevel: 120 + character.level * 12, skillReadyAt: [0, 0, 0], boostLevel: 0 });
 });
 
 const islands = [
@@ -37,6 +47,7 @@ const islands = [
   { id: 'mangue', name: 'Mangue Esmeralda', subtitle: 'Suprimentos · risco baixo', icon: '🌿', color: '#3e9154', reward: 85, enemy: 'Caranguejo Casco-Duro', enemies: 4, terrain: 'mangrove' },
   { id: 'atol', name: 'Atol do Trovão', subtitle: 'Relíquias · risco alto', icon: '⚡', color: '#8756a5', reward: 210, enemy: 'Guardião do Atol', enemies: 7, terrain: 'storm' },
 ];
+islands.forEach((island, index) => { island.essence = essenceCycle[index]; });
 
 const worldIslands = [
   ['cactus', 'Ilha Cactus', 'Onde fica Whisky Peak'],
@@ -70,10 +81,11 @@ const worldIslands = [
   id, name, subtitle, icon: ['⚓', '🦕', '☀', '❄', '❔', '🏜', '🍺', '☁', '😇', '🦒', '⚙', '⚖', '🚆', '🚆', '🚆', '⚔', '🫧', '🔩', '🌺', '🌿', '🪬', '🏰', '💪', '🪽', '🐾', '🏳', '🌉'][index],
   color: ['#3b8db6', '#537d4c', '#e2a447', '#7db8df', '#7a8693', '#c28a43', '#81614b', '#74b4d6', '#a6dff2'][index % 9],
   terrain: ['ruins', 'mangrove', 'mangrove', 'snow', 'mangrove', 'desert', 'ruins', 'storm', 'storm', 'mangrove'][index] || ['ruins', 'mangrove', 'storm'][index % 3], reward: 90 + index * 12, enemies: 4 + (index % 4), enemy: ['Batedor da Ilha', 'Criatura Selvagem', 'Guardião da Rota'][index % 3],
-  levelMin: index * 4 + 1, levelMax: index * 4 + 10,
+  levelMin: index * 4 + 1, levelMax: index * 4 + 10, essence: essenceCycle[index % essenceCycle.length],
 }));
 
 const selected = new Set(['luffy', 'zoro', 'nami', 'sanji', 'chopper']);
+const recruitedCharacterIds = new Set(['luffy', 'zoro', 'nami', 'sanji', 'chopper']);
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 const assetPaths = {
@@ -153,12 +165,14 @@ let lastHudUpdate = 0;
 let toastTimer;
 let dialogueOpen = false;
 let berries = 1250;
-let supplies = 38;
 let animationTime = 0;
 let playerLevel = 18;
 let experience = 0;
 let experienceToLevel = 160;
-let potionCount = 3;
+const inventory = createInventory({ revivePotion: 3, seaRation: 38, mapFragment: 1, generalKey: 1 });
+const recruitmentState = createRecruitmentState();
+const recruitmentChests = Object.values(chestCatalog);
+let lastRecruitResult = null;
 let playerDownUntil = 0;
 let partyWiped = false;
 let partyReviveAt = 0;
@@ -191,19 +205,101 @@ function syncCaptainProgress() {
   player.maxHp = characterMaxHp(captain); player.hp = clamp(player.hp, 0, player.maxHp);
 }
 
+const hubPortraits = {
+  luffy: 'assets/hub/processed/portrait-luffy.png',
+  zoro: 'assets/hub/processed/portrait-zoro.png',
+  nami: 'assets/hub/processed/portrait-nami.png',
+  usopp: 'assets/hub/processed/portrait-usopp.png',
+  sanji: 'assets/hub/processed/portrait-sanji.png',
+  chopper: 'assets/hub/processed/portrait-chopper.png',
+  robin: 'assets/hub/processed/portrait-robin.png',
+  franky: 'assets/hub/processed/portrait-franky.png',
+  brook: 'assets/hub/processed/portrait-brook.png',
+  jinbe: 'assets/hub/processed/portrait-jinbe.png',
+};
+
+function portraitFor(character) {
+  const source = hubPortraits[character.id];
+  return source ? `<img src="${source}" alt="">` : `<span class="portrait-${character.color}">${character.icon}</span>`;
+}
+
+function partyHudUnits() {
+  const units = [];
+  const captain = characterById('luffy');
+  if (selected.has('luffy')) {
+    units.push({
+      id: 'luffy', name: captain.name, icon: captain.icon, color: captain.color,
+      hp: player.hp, maxHp: player.maxHp, stamina: captain.stamina, maxStamina: captain.maxStamina, downUntil: playerDownUntil,
+    });
+  }
+  companions.forEach((member) => {
+    const base = characterById(member.id);
+    units.push({
+      id: member.id, name: member.name, icon: member.icon, color: member.color,
+      hp: member.hp, maxHp: member.maxHp, stamina: base.stamina, maxStamina: base.maxStamina, downUntil: member.downUntil,
+    });
+  });
+  return units;
+}
+
+function renderPartyHud(now = performance.now()) {
+  const party = byId('hub-party');
+  if (!party) return;
+  party.innerHTML = partyHudUnits().map((unit) => {
+    const down = Boolean(unit.downUntil) || unit.hp <= 0;
+    const hp = Math.max(0, Math.ceil(unit.hp));
+    const maxHp = Math.max(1, unit.maxHp);
+    const sp = Math.max(0, Math.ceil(unit.stamina));
+    const maxSp = Math.max(1, unit.maxStamina);
+    const portrait = portraitFor(unit);
+    return `<article class="hub-member ${down ? 'is-down' : ''}" data-hub-member="${unit.id}">
+      <img class="hub-plate" src="assets/hub/processed/party-plate.png" alt="" aria-hidden="true" />
+      <div class="hub-portrait">${portrait}</div>
+      <div class="hub-member-body">
+        <strong>${unit.name}</strong>
+        <div class="hub-stat hub-stat-hp"><span><i style="width:${(hp / maxHp) * 100}%"></i><em>${hp}/${maxHp}</em></span></div>
+        <div class="hub-stat hub-stat-sp"><span><i style="width:${(sp / maxSp) * 100}%"></i><em>${sp}/${maxSp}</em></span></div>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+function setHubLocation(label) {
+  const el = byId('hub-location-label');
+  if (el) el.setAttribute('alt', label);
+
+  // A placa é parte do hub do porto; as ilhas usam apenas o cenário jogável.
+  const sign = el?.closest('.hub-location');
+  if (sign) sign.hidden = Boolean(activeIsland);
+}
+
+function syncHubNav(activeView = view) {
+  document.querySelectorAll('.hub-nav-btn').forEach((button) => {
+    const action = button.dataset.hubAction;
+    const mappedView = button.dataset.view;
+    const isActive = (mappedView && mappedView === activeView)
+      || (action === 'explorar' && activeView === 'mapa')
+      || (action === 'inventario' && byId('inventory-modal')?.open)
+      || (action === 'conta' && byId('inventory-modal')?.open);
+    button.classList.toggle('is-active', Boolean(isActive));
+  });
+}
+
 function updatePlayerHud() {
   syncCaptainProgress();
   const captain = characterById('luffy');
-  byId('player-level').textContent = playerLevel;
+  byId('player-level').textContent = `${playerLevel}/${MAX_CHARACTER_LEVEL}`;
   byId('player-hp').textContent = Math.ceil(player.hp);
   byId('player-max-hp').textContent = player.maxHp;
   byId('player-hp-bar').style.width = `${(player.hp / player.maxHp) * 100}%`;
   byId('player-stamina').textContent = Math.ceil(captain.stamina);
   byId('player-stamina-bar').style.width = `${(captain.stamina / captain.maxStamina) * 100}%`;
-  byId('player-xp').textContent = `${experience.toLocaleString('pt-BR')} / ${experienceToLevel.toLocaleString('pt-BR')}`;
+  byId('player-xp').textContent = playerLevel >= MAX_CHARACTER_LEVEL ? 'Nível máximo' : `${experience.toLocaleString('pt-BR')} / ${experienceToLevel.toLocaleString('pt-BR')}`;
   byId('berries').textContent = berries.toLocaleString('pt-BR');
+  const potionCount = itemQuantity(inventory, 'revivePotion');
   byId('potion-count').textContent = potionCount;
   byId('death-potion-count').textContent = potionCount;
+  renderPartyHud();
 }
 
 function resetCompanions() {
@@ -227,41 +323,43 @@ function setDeathOverlay(visible) {
   overlay.setAttribute('aria-hidden', String(!visible));
 }
 
-function reviveEntireCrew(source = 'timer') {
+function reviveEntireCrew(source = 'potion') {
   playerDownUntil = 0; player.hp = Math.ceil(player.maxHp * .55);
   companions.forEach((member) => { member.downUntil = 0; member.hp = Math.ceil(member.maxHp * .55); member.x = player.x - 34; member.y = player.y + 28; });
   partyWiped = false; partyReviveAt = 0; setDeathOverlay(false); updatePlayerHud();
   showToast(source === 'potion' ? 'A poção reviveu toda a tripulação!' : 'A tripulação voltou à luta.');
 }
 
-function triggerPartyWipe(now) {
-  if (partyWiped) return;
-  partyWiped = true; partyReviveAt = now + 8000; playerDownUntil = partyReviveAt;
-  companions.forEach((member) => { member.hp = 0; member.downUntil = partyReviveAt; });
-  setDeathOverlay(true); updatePlayerHud();
+function syncDeathOverlayCopy() {
+  const potions = itemQuantity(inventory, 'revivePotion');
+  const btn = byId('revive-potion');
+  byId('death-potion-count').textContent = potions;
+  byId('revive-countdown').textContent = potions > 0
+    ? 'Use uma poção para reviver a tripulação, ou volte ao porto.'
+    : 'Sem poções. Volte ao porto ou encontre uma poção para reviver.';
+  btn.disabled = potions <= 0;
+  btn.classList.toggle('is-disabled', potions <= 0);
 }
 
-function updateWipeState(now) {
+function triggerPartyWipe() {
+  if (partyWiped) return;
+  partyWiped = true; partyReviveAt = 0; playerDownUntil = 1;
+  companions.forEach((member) => { member.hp = 0; member.downUntil = 1; });
+  setDeathOverlay(true); syncDeathOverlayCopy(); updatePlayerHud();
+}
+
+function updateWipeState() {
   if (!partyWiped) return false;
-  const remaining = Math.max(0, partyReviveAt - now);
-  byId('revive-countdown').textContent = `A tripulação revive em ${Math.ceil(remaining / 1000)}s`;
-  if (now >= partyReviveAt) reviveEntireCrew();
+  syncDeathOverlayCopy();
   return partyWiped;
 }
 
 function usePotion() {
   if (!activeIsland) return showToast('As poções só podem ser usadas durante uma expedição.');
-  if (potionCount <= 0) return showToast('Você não possui poções de reviver.');
-  const fallen = playerDownUntil || companions.some((member) => member.downUntil);
-  if (!fallen) return showToast('Ninguém precisa de uma poção agora.');
-  potionCount -= 1;
-  if (partyWiped) reviveEntireCrew('potion');
-  else if (playerDownUntil) { playerDownUntil = 0; player.hp = Math.ceil(player.maxHp * .5); updatePlayerHud(); showToast('Você foi revivido com a poção.'); }
-  else {
-    const member = companions.find((companion) => companion.downUntil);
-    member.downUntil = 0; member.hp = Math.ceil(member.maxHp * .5); member.x = player.x - 24; member.y = player.y + 32;
-    updatePlayerHud(); showToast(`${member.name} foi revivido com a poção.`);
-  }
+  if (!partyWiped) return showToast('A poção de reviver só funciona quando toda a tripulação cair.');
+  if (itemQuantity(inventory, 'revivePotion') <= 0) return showToast('Você não possui poções de reviver.');
+  consumeItem(inventory, 'revivePotion');
+  reviveEntireCrew('potion');
   updatePlayerHud();
 }
 
@@ -269,9 +367,15 @@ function rewardKill(enemy) {
   const xpGain = enemy.xpReward;
   const berryGain = enemy.berryReward;
   berries += berryGain;
+  const essenceDropped = enemy.essence && Math.random() < enemy.essenceDropChance ? enemy.essence : null;
+  if (essenceDropped) addItem(inventory, essenceDropped.itemId);
+  const keyDropped = Math.random() < Math.min(.035, .008 + (enemy.level || 1) * .00015);
+  if (keyDropped) addItem(inventory, 'generalKey');
   const levelUps = crew().map((member) => grantCharacterExperience(member, xpGain)).filter(Boolean);
   updatePlayerHud();
-  showReward(enemy, xpGain, berryGain, levelUps.some((member) => member.id === 'luffy') ? 1 : 0);
+  showReward(enemy, xpGain, berryGain, levelUps.some((member) => member.id === 'luffy') ? 1 : 0, essenceDropped);
+  if (essenceDropped) showToast(`+1 ${essenceDropped.name}`);
+  if (keyDropped) showToast('+1 Chave da Grand Line');
   if (levelUps.length) showToast(`${levelUps.map((member) => member.name.split(' ').at(-1)).join(', ')} subiu de nível!`);
 }
 
@@ -303,12 +407,23 @@ function useCombatSkill(member, now) {
   return { damage: Math.round(characterAttack(character) * skillDamageMultiplier(character, skill)), skill };
 }
 
-function healMostWounded(amount) {
+function logCombatEvent({ type, target, text, color = '#ffffff' }) {
+  if (!combatMonitoring.enabled || !combatMonitoring[type] || !target) return;
+  combatEvents.push({ type, x: target.x, y: target.y, text, color, startedAt: performance.now() });
+  if (combatEvents.length > combatMonitoring.maxVisibleEvents) combatEvents.splice(0, combatEvents.length - combatMonitoring.maxVisibleEvents);
+}
+
+function combatTargetFor(member) {
+  return member.id === 'luffy' ? player : companions.find((unit) => unit.id === member.id);
+}
+
+function healMostWounded(amount, healer) {
   const units = livingUnits();
   const target = units.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
   if (!target) return;
   if (target.isPlayer) { player.hp = Math.min(player.maxHp, player.hp + amount); updatePlayerHud(); }
   else target.hp = Math.min(target.maxHp, target.hp + amount);
+  logCombatEvent({ type: 'healing', target, text: `${healer.name.split(' ').at(-1)} · +${amount}`, color: outfitTints[healer.color] });
 }
 
 function applyPassiveRegeneration(now) {
@@ -317,6 +432,7 @@ function applyPassiveRegeneration(now) {
   livingUnits().forEach((unit) => {
     if (unit.isPlayer) player.hp = Math.min(player.maxHp, player.hp + 2);
     else unit.hp = Math.min(unit.maxHp, unit.hp + 2);
+    logCombatEvent({ type: 'healing', target: unit, text: 'Chopper · +2', color: outfitTints.rose });
   });
   updatePlayerHud();
 }
@@ -325,8 +441,10 @@ function setView(nextView) {
   view = nextView;
   document.querySelectorAll('[data-view-panel]').forEach((panel) => panel.classList.toggle('is-active', panel.dataset.viewPanel === nextView));
   document.querySelectorAll('.nav-link').forEach((button) => button.classList.toggle('is-active', button.dataset.view === nextView));
+  syncHubNav(nextView);
   if (nextView === 'jogo') requestAnimationFrame(() => resizeCanvas());
   if (nextView === 'tripulacao') renderCrew();
+  if (nextView === 'recrutamento') renderRecruitmentScreen();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -347,11 +465,11 @@ function showToast(message) {
   toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 3000);
 }
 
-function showReward(enemy, xpGain, berryGain, levelsGained = 0) {
+function showReward(enemy, xpGain, berryGain, levelsGained = 0, essence = null) {
   const stack = byId('reward-stack');
   const reward = document.createElement('article');
   reward.className = 'reward-notification';
-  reward.innerHTML = `<span class="reward-seal">✦</span><div><b>${enemy.name} derrotado</b><small>+${xpGain} XP <i>·</i> +${berryGain} Berries${levelsGained ? ` <em>NV. ${playerLevel}</em>` : ''}</small></div>`;
+  reward.innerHTML = `<span class="reward-seal">✦</span><div><b>${enemy.name} derrotado</b><small>+${xpGain} XP <i>·</i> +${berryGain} Berries${levelsGained ? ` <em>NV. ${playerLevel}</em>` : ''}${essence ? ` <strong>· +1 ${essence.icon} ${essence.name}</strong>` : ''}</small></div>`;
   stack.append(reward);
 
   while (stack.children.length > 3) stack.firstElementChild.remove();
@@ -538,6 +656,20 @@ function drawPowerEffects(now) {
   });
 }
 
+function drawCombatEvents(now) {
+  combatEvents = combatEvents.filter((event) => now - event.startedAt < 1180);
+  combatEvents.forEach((event, index) => {
+    const age = (now - event.startedAt) / 1180;
+    const critical = event.type === 'critical';
+    const size = critical ? 17 : event.type === 'damage' ? 13 : 12;
+    ctx.save(); ctx.globalAlpha = 1 - age; ctx.textAlign = 'center';
+    ctx.font = `800 ${size}px system-ui`; ctx.fillStyle = event.color;
+    ctx.shadowColor = critical ? '#ffd34f' : 'rgba(0,0,0,.9)'; ctx.shadowBlur = critical ? 11 : 4;
+    ctx.fillText(event.text, event.x, event.y - 36 - age * 48 - (index % 3) * 15);
+    ctx.restore();
+  });
+}
+
 function drawNpc(npc) {
   if (!ready(assets.pcHeroIdle)) return drawEntity({ ...npc, radius: 17 }, npc.color, npc.icon, npc.name);
   const frame = Math.floor(animationTime / 280) % 4;
@@ -563,6 +695,7 @@ function drawScene(timestamp) {
   drawPowerEffects(timestamp);
   drawPlayer();
   drawCompanions();
+  drawCombatEvents(timestamp);
   ctx.restore();
   if (activeIsland) {
     ctx.fillStyle = 'rgba(3, 26, 38, .78)'; ctx.fillRect(16, 16, 250, 42);
@@ -650,19 +783,13 @@ function spawnEnemies(island) {
     x: 500 + (index % 3) * 120, y: 145 + Math.floor(index / 3) * 120, radius: 17, level: island.levelMin || 1,
     hp: enemyMaxHp(island, index), maxHp: enemyMaxHp(island, index),
     speed: (62 + index * 4) * (hasPassive('control') ? .9 : 1), range: 34, damage: enemyDamage(island, index), color: island.color, cooldown: 0,
-    xpReward: 12 + (island.levelMin || 1) * 3 + index * 2, berryReward: 7 + (island.levelMin || 1) * 2 + index, respawnAt: 0,
+    xpReward: 12 + (island.levelMin || 1) * 3 + index * 2, berryReward: 7 + (island.levelMin || 1) * 2 + index, essence: island.essence || essenceCycle[0], essenceDropChance: essenceDropChance(island.levelMin || 1), respawnAt: 0,
   }));
 }
 
 function updateCompanions(delta, target, now) {
   companions.forEach((member, index) => {
-    if (member.downUntil) {
-      if (now >= member.downUntil) {
-        member.downUntil = 0; member.hp = Math.ceil(member.maxHp * .45); member.x = player.x - 25; member.y = player.y + 35;
-        showToast(`${member.name} voltou à luta.`);
-      }
-      return;
-    }
+    if (member.downUntil) return;
     const destination = companionDestination(index, target);
     const dx = destination.x - member.x; const dy = destination.y - member.y; const distanceToDestination = Math.hypot(dx, dy);
     if (distanceToDestination > 3) { member.x += dx / distanceToDestination * Math.min(member.speed * delta, distanceToDestination); member.y += dy / distanceToDestination * Math.min(member.speed * delta, distanceToDestination); }
@@ -684,26 +811,27 @@ function enterIsland(id) {
   activeIsland = nextIsland;
   if (byId('islands-modal').open) byId('islands-modal').close();
   partyWiped = false; partyReviveAt = 0; playerDownUntil = 0; setDeathOverlay(false); player.x = 155; player.y = 352; player.hp = player.maxHp;
-  activePowerEffects = []; crew().forEach((member) => { member.stamina = member.maxStamina; member.skillReadyAt = [0, 0, 0]; });
+  activePowerEffects = []; combatEvents = []; crew().forEach((member) => { member.stamina = member.maxStamina; member.skillReadyAt = [0, 0, 0]; });
   resetCompanions(); spawnEnemies(activeIsland); setDialogue(null, true); setView('jogo');
   byId('scene-kicker').textContent = 'Ilha hostil'; byId('game-title').textContent = activeIsland.name;
   byId('combat-state').textContent = 'Inimigos surgiram'; byId('quest-title').textContent = `Limpar ${activeIsland.name}`;
   byId('quest-copy').textContent = 'A formação mantém foco coletivo: todos atacam o mesmo alvo até ele ser derrotado.';
-  byId('quest-progress').style.width = '35%'; showToast(`${activeIsland.name}: ${enemies.length} inimigos surgiram.`);
+  byId('quest-progress').style.width = '35%'; setHubLocation(activeIsland.name); updatePlayerHud();
+  showToast(`${activeIsland.name}: ${enemies.length} inimigos surgiram.`);
 }
 
 function returnToPort() {
-  activeIsland = null; enemies = []; activePowerEffects = []; partyWiped = false; partyReviveAt = 0; playerDownUntil = 0; setDeathOverlay(false); player.x = 220; player.y = 332; player.hp = player.maxHp; crew().forEach((member) => { member.stamina = member.maxStamina; }); resetCompanions(); updatePlayerHud();
+  activeIsland = null; enemies = []; activePowerEffects = []; combatEvents = []; partyWiped = false; partyReviveAt = 0; playerDownUntil = 0; setDeathOverlay(false); player.x = 220; player.y = 332; player.hp = player.maxHp; crew().forEach((member) => { member.stamina = member.maxStamina; }); resetCompanions(); updatePlayerHud();
   byId('scene-kicker').textContent = 'Porto Seguro'; byId('game-title').textContent = 'Cais da Aurora'; byId('combat-state').textContent = 'Explore e fale com os NPCs';
   byId('quest-title').textContent = 'Preparar a expedição'; byId('quest-copy').textContent = 'Fale com Nami no cais ou abra o mapa para navegar até uma ilha.'; byId('quest-progress').style.width = '20%';
+  setHubLocation('Cais da Aurora');
 }
 
 function updateGame(delta, now) {
   animationTime += delta * 1000;
-  if (updateWipeState(now)) return;
+  if (updateWipeState()) { renderPartyHud(now); return; }
   recoverStamina(delta);
-  if (activeIsland && now - lastHudUpdate > 120) { updatePlayerHud(); lastHudUpdate = now; }
-  if (playerDownUntil && now >= playerDownUntil) { playerDownUntil = 0; player.hp = Math.ceil(player.maxHp * .45); updatePlayerHud(); showToast('Você voltou à luta.'); }
+  if (now - lastHudUpdate > 120) { updatePlayerHud(); lastHudUpdate = now; }
   const movement = { x: 0, y: 0 };
   if (keys.has('w') || keys.has('arrowup')) movement.y -= 1;
   if (keys.has('s') || keys.has('arrowdown')) movement.y += 1;
@@ -726,15 +854,22 @@ function updateGame(delta, now) {
         const fightingCrew = [...(playerDownUntil ? [] : [captain]), ...companions.filter((member) => member.hp > 0 && !member.downUntil && distance(member, target) < 76)];
         const fighters = fightingCrew.length;
         const combatActions = fightingCrew.map((member) => ({ member, ...useCombatSkill(member, now) }));
-        let damage = combatActions.reduce((sum, action) => sum + action.damage, 0) + Math.max(0, fighters - 1) * 2;
-        if (hasPassive('captain')) damage = Math.ceil(damage * 1.08);
-        if (hasPassive('execution') && target.hp / target.maxHp < .4) damage = Math.ceil(damage * 1.15);
+        let multiplier = 1;
+        if (hasPassive('captain')) multiplier *= 1.08;
+        if (hasPassive('execution') && target.hp / target.maxHp < .4) multiplier *= 1.15;
         const critical = hasPassive('critical') && Math.random() < .12;
-        if (critical) damage = Math.ceil(damage * 1.75);
+        if (critical) multiplier *= 1.75;
+        const resolvedActions = combatActions.map((action) => ({ ...action, damage: Math.ceil(action.damage * multiplier) }));
+        const damage = resolvedActions.reduce((sum, action) => sum + action.damage, Math.max(0, fighters - 1) * 2);
         target.hp -= damage; lastAttack = now;
-        const skillFighters = combatActions.filter((action) => action.skill).map((action) => action.member);
+        resolvedActions.forEach((action) => {
+          const label = action.skill ? action.skill.name : 'Golpe básico';
+          const color = outfitTints[action.member.color] || '#ffffff';
+          logCombatEvent({ type: critical ? 'critical' : 'damage', target, text: `${action.member.name.split(' ').at(-1)} · ${label} -${action.damage}`, color });
+        });
+        const skillFighters = resolvedActions.filter((action) => action.skill).map((action) => action.member);
         triggerPowerEffects(skillFighters, target, now); triggerCombatMotion(skillFighters, target, now);
-        if (hasPassive('cook')) healMostWounded(4);
+        if (hasPassive('cook')) healMostWounded(4, characterById('sanji'));
         const skillNames = combatActions.filter((action) => action.skill).map((action) => action.skill.name).slice(0, 2).join(' · ');
         byId('combat-state').textContent = `${fighters} tripulantes focam ${target.name} · -${damage} PV${skillNames ? ` · ${skillNames}` : ''}${critical ? ' · CRÍTICO!' : ''}`;
         if (target.hp <= 0) { target.hp = 0; target.respawnAt = now + 4500; rewardKill(target); }
@@ -748,21 +883,24 @@ function updateGame(delta, now) {
       if (dist > enemy.range + victim.radius && dist < 210) { enemy.x += (victim.x - enemy.x) / dist * enemy.speed * delta; enemy.y += (victim.y - enemy.y) / dist * enemy.speed * delta; }
       else if (dist <= enemy.range + victim.radius && now - enemy.cooldown > 1650) {
         enemy.cooldown = now;
-        if (hasPassive('evasion') && Math.random() < .12) { byId('combat-state').textContent = 'Mirage Tempo evitou o ataque inimigo!'; return; }
+        if (hasPassive('evasion') && Math.random() < .12) { byId('combat-state').textContent = 'Mirage Tempo evitou o ataque inimigo!'; logCombatEvent({ type: 'evasion', target: victim, text: 'ESQUIVOU!', color: '#b77cf5' }); return; }
         let incomingDamage = enemy.damage;
+        const defended = hasPassive('armor') || hasPassive('tideguard');
         if (hasPassive('armor')) incomingDamage *= .9;
         if (hasPassive('tideguard')) incomingDamage *= .92;
         const defender = characterById(victim.id);
         incomingDamage /= 1 + characterDefense(defender) * .035;
         incomingDamage = Math.max(1, Math.round(incomingDamage));
+        if (defended) logCombatEvent({ type: 'defense', target: victim, text: `🛡 Defesa · -${incomingDamage}`, color: '#8ac7e8' });
+        else logCombatEvent({ type: 'damage', target: victim, text: `${enemy.name} · -${incomingDamage}`, color: '#ff8c7a' });
         if (victim.isPlayer) {
           player.hp = Math.max(0, player.hp - incomingDamage); updatePlayerHud();
-          if (player.hp <= 0) { playerDownUntil = now + 5000; showToast('Você caiu. A tripulação ainda pode lutar.'); }
+          if (player.hp <= 0) { playerDownUntil = 1; showToast('Você caiu. A tripulação ainda pode lutar.'); }
         } else {
           victim.hp = Math.max(0, victim.hp - incomingDamage);
-          if (victim.hp <= 0) { victim.downUntil = now + 5000; showToast(`${victim.name} caiu e voltará em alguns segundos.`); }
+          if (victim.hp <= 0) { victim.downUntil = 1; showToast(`${victim.name} caiu e ficou fora do combate.`); }
         }
-        if (everyoneDown()) triggerPartyWipe(now);
+        if (everyoneDown()) triggerPartyWipe();
       }
     });
     if (!alive.length) byId('combat-state').textContent = 'Área limpa. Inimigos reaparecerão em instantes.';
@@ -775,25 +913,217 @@ function gameLoop(now) { const delta = Math.min((now - lastFrame) / 1000, .035);
 
 function characterCard(character) {
   const chosen = selected.has(character.id);
+  const owned = recruitedCharacterIds.has(character.id);
+  const job = getCrewJob(character.jobId);
   const rank = skillRank(character);
   const skillTags = character.skills.map((skill, index) => {
     if (skill.kind === 'passive') return `<i class="is-passive" title="${skill.description}">◈ ${skill.name}</i>`;
     const cooldown = (skill.cooldown / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     return `<i title="${skill.description} · Nv. ${rank} · ${skill.staminaCost} EST · recarga ${cooldown}s">${index + 1} ${skill.name} · Nv.${rank}</i>`;
   }).join('');
-  return `<button class="character-card ${chosen ? 'is-selected' : ''}" type="button" data-character="${character.id}" aria-pressed="${chosen}"><span class="portrait portrait-${character.color}" aria-hidden="true">${character.icon}</span><span class="character-main"><b>${character.name}</b><small>${character.role} · Nv. ${character.level} · ${character.experience}/${character.experienceToLevel} XP</small></span><span class="character-power">⚔ ${characterAttack(character)}</span><span class="character-stats"><i>PV ${characterMaxHp(character)}</i><i>DEF ${characterDefense(character)}</i><i>EST ${Math.ceil(character.stamina)}/${character.maxStamina}</i></span><span class="tag-row">${character.tags.map((tag) => `<i>${tag}</i>`).join('')}</span><span class="skill-row">${skillTags}</span></button>`;
+  const essence = essenceForCharacter(character.id);
+  const boostCost = boostUpgradeCost(character);
+  const essenceAmount = itemQuantity(inventory, essence.itemId);
+  const atMaxBoost = character.boostLevel >= BOOST_MAX_LEVEL;
+  const nextBoost = character.boostLevel + 1;
+  const portrait = portraitFor(character);
+  if (!owned) return `<article class="character-card is-locked" data-character="${character.id}" role="button" tabindex="0" aria-label="${character.name} bloqueado"><span class="portrait portrait-${character.color}" aria-hidden="true">${portrait}</span><span class="character-main"><b>${character.name}</b><small>Bloqueado · encontre este tripulante em baús</small></span><span class="character-power">${character.rarity}</span><span class="tag-row"><i>Recrutamento</i><i>${character.role}</i></span></article>`;
+  return `<article class="character-card ${chosen ? 'is-selected' : ''}" data-character="${character.id}" role="button" tabindex="0" aria-pressed="${chosen}"><span class="portrait portrait-${character.color}" aria-hidden="true">${portrait}</span><span class="character-main"><b>${character.name}</b><small>Cargo: ${job.name} · ${job.formationRole} · Nv. ${character.level}/${MAX_CHARACTER_LEVEL}</small></span><span class="character-power">⚔ ${characterAttack(character)}</span><span class="character-stats"><i>PV ${characterMaxHp(character)}</i><i>DEF ${characterDefense(character)}</i><i>EST ${Math.ceil(character.stamina)}/${character.maxStamina}</i></span><span class="tag-row">${character.tags.map((tag) => `<i>${tag}</i>`).join('')}</span><span class="skill-row">${skillTags}</span><span class="essence-evolution"><i>${essence.icon} ${essence.name}</i><b>Boost +${character.boostLevel}/${BOOST_MAX_LEVEL}</b><button class="essence-upgrade" type="button" data-boost-character="${character.id}" ${activeIsland || atMaxBoost ? 'disabled' : ''}>${atMaxBoost ? 'Boost máximo' : `+${nextBoost}: ${essenceAmount}/${boostCost}`}</button></span></article>`;
+}
+
+function boostCharacter(id) {
+  if (activeIsland) return showToast('Boosts são feitos no porto, fora de expedições.');
+  const character = characterById(id);
+  const essence = essenceForCharacter(id);
+  if (character.boostLevel >= BOOST_MAX_LEVEL) return showToast(`${character.name} já alcançou Boost +${BOOST_MAX_LEVEL}.`);
+  const cost = boostUpgradeCost(character);
+  if (!consumeItem(inventory, essence.itemId, cost)) return showToast(`São necessárias ${cost} ${essence.name} para este Boost.`);
+  applyBoost(character);
+  if (id === 'luffy') { player.maxHp = characterMaxHp(character); player.hp = player.maxHp; }
+  resetCompanions(); updatePlayerHud(); renderCrew();
+  showToast(`${character.name} alcançou Boost +${character.boostLevel}!`);
+}
+
+const crewFocusStat = {
+  captain: { label: 'Saúde', icon: '♥', tone: 'health', value: (c) => characterMaxHp(c), max: (c) => characterMaxHp(c) },
+  firstMate: { label: 'Força', icon: '⚔', tone: 'force', value: (c) => characterAttack(c), max: (c) => characterAttack(c) + 20 },
+  swordsman: { label: 'Força', icon: '⚔', tone: 'force', value: (c) => characterAttack(c), max: (c) => characterAttack(c) + 20 },
+  navigator: { label: 'Agilidade', icon: '🌬', tone: 'agility', value: (c) => c.maxStamina, max: (c) => c.maxStamina },
+  helmsman: { label: 'Agilidade', icon: '🌬', tone: 'agility', value: (c) => c.maxStamina, max: (c) => c.maxStamina },
+  cook: { label: 'Técnica', icon: '♨', tone: 'tech', value: (c) => Math.round(c.power / 8), max: (c) => Math.round(c.power / 8) + 40 },
+  doctor: { label: 'Suporte', icon: '✚', tone: 'support', value: (c) => characterMaxHp(c), max: (c) => characterMaxHp(c) },
+  sniper: { label: 'Técnica', icon: '◎', tone: 'tech', value: (c) => characterAttack(c), max: (c) => characterAttack(c) + 20 },
+  archaeologist: { label: 'Técnica', icon: '✦', tone: 'tech', value: (c) => characterAttack(c), max: (c) => characterAttack(c) + 20 },
+  shipwright: { label: 'Força', icon: '⚙', tone: 'force', value: (c) => characterDefense(c) * 4, max: (c) => characterDefense(c) * 4 + 40 },
+  musician: { label: 'Suporte', icon: '♫', tone: 'support', value: (c) => c.maxStamina, max: (c) => c.maxStamina },
+  lookout: { label: 'Agilidade', icon: '◉', tone: 'agility', value: (c) => c.maxStamina, max: (c) => c.maxStamina },
+  gunner: { label: 'Força', icon: '◈', tone: 'force', value: (c) => characterAttack(c), max: (c) => characterAttack(c) + 20 },
+  scholar: { label: 'Técnica', icon: '▤', tone: 'tech', value: (c) => characterAttack(c), max: (c) => characterAttack(c) + 20 },
+};
+
+let crewFocusId = 'luffy';
+let crewSwapOpen = false;
+let crewSummaryOpen = false;
+let upgradeTab = 'boost';
+
+const skillIconFor = (skill, index) => {
+  if (skill.kind === 'passive') return '◈';
+  return ['①', '②', '③'][index] || '✦';
+};
+
+function characterBlurb(character) {
+  const job = getCrewJob(character.jobId);
+  return `${character.name.split(' ').at(-1)} atua como ${job.name.toLowerCase()} da tripulação. ${job.description}`;
+}
+
+function focusStatFor(character) {
+  return crewFocusStat[character.jobId] || crewFocusStat.captain;
+}
+
+function renderCrewDetail(character) {
+  const panel = byId('crew-detail-panel');
+  if (!crewSummaryOpen || !character) {
+    panel.hidden = true;
+    panel.innerHTML = '';
+    return;
+  }
+  const job = getCrewJob(character.jobId);
+  const companion = companions.find((member) => member.id === character.id);
+  const hp = character.id === 'luffy' ? Math.ceil(player.hp) : Math.ceil(companion?.hp ?? characterMaxHp(character));
+  const maxHp = character.id === 'luffy' ? player.maxHp : (companion?.maxHp ?? characterMaxHp(character));
+  const stamina = Math.ceil(character.stamina);
+  const skills = character.skills.map((skill, index) => `
+    <button class="crew-skill" type="button" data-tip="${skill.description.replace(/"/g, '&quot;')}" title="${skill.description}">
+      <span class="crew-skill-icon ${skill.kind === 'passive' ? 'is-passive' : ''}">${skillIconFor(skill, index)}</span>
+      <small>${skill.name}</small>
+    </button>`).join('');
+  const portrait = hubPortraits[character.id]
+    ? `<img src="${hubPortraits[character.id]}" alt="">`
+    : character.icon;
+  panel.hidden = false;
+  panel.innerHTML = `
+    <div class="crew-summary">
+      <div class="crew-summary-main">
+        <span class="crew-detail-portrait">${portrait}</span>
+        <div>
+          <p class="crew-summary-role">${job.name}</p>
+          <h2>${character.name}</h2>
+          <p class="crew-summary-blurb">${characterBlurb(character)}</p>
+          <div class="crew-summary-stats">
+            <span><b>PV</b> ${hp}/${maxHp}</span>
+            <span><b>EST</b> ${stamina}/${character.maxStamina}</span>
+            <span><b>Boost</b> +${character.boostLevel}/${BOOST_MAX_LEVEL}</span>
+            <span><b>Nv.</b> ${character.level}/${MAX_CHARACTER_LEVEL}</span>
+          </div>
+        </div>
+      </div>
+      <div class="crew-skill-row" aria-label="Habilidades">${skills}</div>
+      <p class="crew-skill-hint">Passe o mouse sobre uma habilidade para ver a descrição.</p>
+    </div>`;
+}
+
+function renderCharUpgrade(character) {
+  const root = byId('char-upgrade-content');
+  if (!character) { root.innerHTML = ''; return; }
+  const job = getCrewJob(character.jobId);
+  const essence = essenceForCharacter(character.id);
+  const boostCost = boostUpgradeCost(character);
+  const essenceAmount = itemQuantity(inventory, essence.itemId);
+  const atMaxBoost = character.boostLevel >= BOOST_MAX_LEVEL;
+  const portrait = hubPortraits[character.id]
+    ? `<img src="${hubPortraits[character.id]}" alt="">`
+    : `<span>${character.icon}</span>`;
+  const tabs = [
+    ['boost', 'Boost', false],
+    ['equip', 'Equipamento', true],
+    ['treino', 'Treino', true],
+  ].map(([id, label, locked]) => `<button class="char-tab ${upgradeTab === id ? 'is-active' : ''} ${locked ? 'is-locked' : ''}" type="button" data-upgrade-tab="${id}" ${locked ? 'disabled' : ''}>${label}${locked ? ' · em breve' : ''}</button>`).join('');
+
+  let body = '';
+  if (upgradeTab === 'boost') {
+    body = `
+      <section class="char-boost-panel">
+        <p>Use essências para elevar o potencial de combate deste tripulante.</p>
+        <div class="char-boost-meter"><span style="width:${(character.boostLevel / BOOST_MAX_LEVEL) * 100}%"></span></div>
+        <div class="char-boost-meta">
+          <strong>Boost +${character.boostLevel}/${BOOST_MAX_LEVEL}</strong>
+          <span>${essence.icon} ${essence.name}: ${essenceAmount}</span>
+        </div>
+        <button class="char-boost-btn" type="button" data-boost-character="${character.id}" ${activeIsland || atMaxBoost ? 'disabled' : ''}>
+          ${atMaxBoost ? 'Boost máximo alcançado' : `Subir para +${character.boostLevel + 1} · custo ${boostCost}`}
+        </button>
+        <small>Boosts só podem ser feitos no porto, fora de expedições.</small>
+      </section>`;
+  } else {
+    body = `<section class="char-boost-panel is-soon"><p>Esta aba chegará em breve para evoluir ${character.name.split(' ').at(-1)} ainda mais.</p></section>`;
+  }
+
+  root.innerHTML = `
+    <section class="char-upgrade-shell">
+      <header class="char-upgrade-head">
+        <span class="crew-detail-portrait">${portrait}</span>
+        <div>
+          <p>${job.name}</p>
+          <h2 id="char-upgrade-title">${character.name}</h2>
+          <small>Nv. ${character.level} · PV ${characterMaxHp(character)} · EST ${character.maxStamina} · ⚔ ${characterAttack(character)}</small>
+        </div>
+        <button class="char-upgrade-close" type="button" data-upgrade-close aria-label="Fechar">×</button>
+      </header>
+      <nav class="char-tabs" aria-label="Abas de evolução">${tabs}</nav>
+      ${body}
+    </section>`;
+}
+
+function openCharUpgrade() {
+  const character = characterById(crewFocusId);
+  if (!character) return;
+  upgradeTab = 'boost';
+  renderCharUpgrade(character);
+  byId('char-upgrade-modal').showModal();
 }
 
 function renderCrew() {
   const current = crew();
-  byId('crew-slots').innerHTML = Array.from({ length: 5 }, (_, index) => { const character = current[index]; return character ? `<button class="crew-slot portrait-${character.color}" type="button" data-character="${character.id}" title="Remover ${character.name}"><span>${character.icon}</span><small>${character.name.split(' ').at(-1)}</small></button>` : '<div class="crew-slot is-empty"><span>+</span><small>Vaga livre</small></div>'; }).join('');
+  if (!current.some((member) => member.id === crewFocusId)) crewFocusId = current[0]?.id || 'luffy';
+  const cards = byId('crew-cards');
+  cards.innerHTML = Array.from({ length: 5 }, (_, index) => {
+    const character = current[index];
+    if (!character) {
+      return `<button class="crew-card is-empty" type="button" data-crew-swap-open title="Abrir formação"><span class="crew-card-empty">+</span><small>Vaga livre</small></button>`;
+    }
+    const focus = focusStatFor(character);
+    const value = Math.round(focus.value(character));
+    const max = Math.max(value, Math.round(focus.max(character)));
+    const pct = Math.max(8, Math.min(100, (value / max) * 100));
+    const isFocus = character.id === crewFocusId;
+    const isCaptain = character.id === 'luffy';
+    const portrait = hubPortraits[character.id]
+      ? `<img src="${hubPortraits[character.id]}" alt="">`
+      : `<span class="portrait-${character.color}">${character.icon}</span>`;
+    return `<button class="crew-card tone-${focus.tone} ${isFocus ? 'is-focused' : ''}" type="button" data-crew-focus="${character.id}" aria-pressed="${isFocus}">
+      ${isCaptain ? '<span class="crew-captain-badge"><i>♛</i> Capitão</span>' : ''}
+      <div class="crew-card-art">${portrait}</div>
+      <strong>${character.name}</strong>
+      <small>Nv. ${character.level}</small>
+      <span class="crew-card-stat"><i>${focus.icon}</i> ${focus.label}</span>
+      <div class="crew-card-bar"><i style="width:${pct}%"></i><em>${value} / ${max}</em></div>
+    </button>`;
+  }).join('');
+
   byId('roster').innerHTML = characters.map(characterCard).join('');
   byId('crew-counter').textContent = `${current.length} / 5`;
   byId('crew-power').textContent = current.reduce((total, character) => total + character.power, 0).toLocaleString('pt-BR');
-  byId('mini-party').innerHTML = current.map((character) => `<span class="mini-member portrait-${character.color}" title="${character.name}">${character.icon}</span>`).join('');
+  byId('mini-party').innerHTML = current.map((character) => `<span class="mini-member portrait-${character.color}" title="${character.name}">${portraitFor(character)}</span>`).join('');
+  byId('crew-slots').innerHTML = '';
+  byId('cargo-catalog-list').innerHTML = '';
+  byId('crew-roster-panel').hidden = !crewSwapOpen;
+  byId('crew-swap-btn').classList.toggle('is-active', crewSwapOpen);
+  renderCrewDetail(characterById(crewFocusId));
+  if (byId('char-upgrade-modal').open) renderCharUpgrade(characterById(crewFocusId));
 }
 
 function toggleCharacter(id) {
+  if (!recruitedCharacterIds.has(id)) return showToast('Este tripulante ainda não foi recrutado. Abra baús para encontrá-lo.');
   if (id === 'luffy' && selected.has(id)) return showToast('O capitão precisa permanecer na tripulação.');
   if (activeIsland) return showToast('Você não pode alterar a tripulação durante uma expedição.');
   if (selected.has(id)) selected.delete(id);
@@ -803,7 +1133,7 @@ function toggleCharacter(id) {
 }
 
 function renderMap() {
-  byId('map-grid').innerHTML = islands.map((island) => `<article class="island-card"><span class="island-icon" style="background:${island.color}">${island.icon}</span><div><p class="eyebrow">${island.enemies} inimigos</p><h2>${island.name}</h2><p>${island.subtitle}</p></div><button class="button button-primary" type="button" data-enter-island="${island.id}">Entrar na ilha →</button></article>`).join('');
+  byId('map-grid').innerHTML = islands.map((island) => `<article class="island-card"><span class="island-icon" style="background:${island.color}">${island.icon}</span><div><p class="eyebrow">${island.enemies} inimigos</p><h2>${island.name}</h2><p>${island.subtitle}</p><span class="island-drop">Drop (${Math.round(essenceDropChance(island.levelMin || 1) * 100)}%): ${island.essence.icon} ${island.essence.name}</span></div><button class="button button-primary" type="button" data-enter-island="${island.id}">Entrar na ilha →</button></article>`).join('');
 }
 
 function renderIslandModal() {
@@ -812,8 +1142,81 @@ function renderIslandModal() {
   byId('island-modal-list').innerHTML = worldIslands.map((island, index) => {
     const available = true;
     const difficulty = islandDifficulty(island, averageLevel);
-    return `<article class="modal-island-card ${available ? 'is-available' : 'is-locked'} difficulty-${difficulty.id}"><span class="modal-island-number">${String(index + 1).padStart(2, '0')}</span><span class="modal-island-icon" style="background:${island.color}">${island.icon}</span><h3>${island.name}</h3><p>${island.subtitle}</p><strong class="island-level">Nv. ${island.levelMin}–${island.levelMax}</strong><span class="island-difficulty">${difficulty.label} · média Nv. ${averageLevel.toFixed(1)}</span><button class="button ${available ? 'button-primary' : 'button-locked'}" type="button" ${available ? `data-enter-island="${island.id}"` : 'disabled'}>${available ? 'Viajar' : 'Bloqueada'}</button></article>`;
+    return `<article class="modal-island-card ${available ? 'is-available' : 'is-locked'} difficulty-${difficulty.id}"><span class="modal-island-number">${String(index + 1).padStart(2, '0')}</span><span class="modal-island-icon" style="background:${island.color}">${island.icon}</span><h3>${island.name}</h3><p>${island.subtitle}</p><strong class="island-level">Nv. ${island.levelMin}–${island.levelMax}</strong><span class="island-difficulty">${difficulty.label} · média Nv. ${averageLevel.toFixed(1)}</span><span class="island-drop">Drop (${Math.round(essenceDropChance(island.levelMin) * 100)}%): ${island.essence.icon} ${island.essence.name}</span><button class="button ${available ? 'button-primary' : 'button-locked'}" type="button" ${available ? `data-enter-island="${island.id}"` : 'disabled'}>${available ? 'Viajar' : 'Bloqueada'}</button></article>`;
   }).join('');
+}
+
+const inventoryUi = { filter: 'itens', selectedId: null };
+
+function refreshInventory() {
+  const next = renderInventory(byId('inventory-content'), inventory, itemCatalog, berries, inventoryUi);
+  inventoryUi.selectedId = next.selectedId;
+  inventoryUi.filter = next.filter;
+}
+
+function openInventory() {
+  refreshInventory();
+  byId('inventory-modal').showModal();
+  syncHubNav();
+}
+
+function handleInventoryAction(action, itemId) {
+  if (action === 'back') {
+    byId('inventory-modal').close();
+    syncHubNav();
+    return;
+  }
+  const item = itemCatalog[itemId];
+  if (!item || itemQuantity(inventory, itemId) <= 0) return;
+  if (action === 'use') {
+    if (itemId === 'revivePotion') {
+      usePotion();
+      refreshInventory();
+      return;
+    }
+    showToast(`${item.name} fica guardado para uso em breve.`);
+    return;
+  }
+  if (action === 'sell') {
+    if (item.category === 'Chave' || item.category === 'Essência') {
+      showToast(`${item.name} é importante demais para vender.`);
+      return;
+    }
+    const price = sellPriceFor(item);
+    if (!consumeItem(inventory, itemId)) return;
+    berries += price;
+    updatePlayerHud();
+    if (inventoryUi.selectedId === itemId && itemQuantity(inventory, itemId) <= 0) inventoryUi.selectedId = null;
+    refreshInventory();
+    showToast(`Vendeu 1× ${item.name} por ${price} Berries.`);
+    return;
+  }
+  if (action === 'discard') {
+    if (item.category === 'Chave') {
+      showToast('Chaves não podem ser descartadas.');
+      return;
+    }
+    if (!consumeItem(inventory, itemId)) return;
+    if (inventoryUi.selectedId === itemId && itemQuantity(inventory, itemId) <= 0) inventoryUi.selectedId = null;
+    refreshInventory();
+    showToast(`Descartou 1× ${item.name}.`);
+  }
+}
+
+function renderRecruitmentScreen() {
+  renderRecruitment(byId('recruitment-content'), { chests: recruitmentChests, state: recruitmentState, inventory, lastResult: lastRecruitResult });
+}
+
+function openChest(chestId) {
+  const chest = chestCatalog[chestId];
+  if (!chest || chest.status !== 'active') return;
+  if (!consumeItem(inventory, chest.keyId)) return showToast(`Você precisa de ${chest.keyName}.`);
+  lastRecruitResult = rollRecruit(recruitmentState, chest, characters);
+  lastRecruitResult.isNew = !recruitedCharacterIds.has(lastRecruitResult.character.id);
+  recruitedCharacterIds.add(lastRecruitResult.character.id);
+  renderRecruitmentScreen();
+  const prefix = lastRecruitResult.guaranteed ? 'MÍTICO GARANTIDO: ' : '';
+  showToast(`${prefix}${lastRecruitResult.character.name} — ${lastRecruitResult.rarity.name}!`);
 }
 
 document.addEventListener('keydown', (event) => {
@@ -823,23 +1226,104 @@ document.addEventListener('keydown', (event) => {
   if (key === 'm') setView('mapa');
 });
 document.addEventListener('keyup', (event) => keys.delete(event.key.toLowerCase()));
+document.addEventListener('keydown', (event) => {
+  if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('[data-character]')) {
+    event.preventDefault();
+    toggleCharacter(event.target.dataset.character);
+  }
+});
 document.addEventListener('click', (event) => {
   const viewButton = event.target.closest('[data-view]'); if (viewButton) setView(viewButton.dataset.view);
-  const character = event.target.closest('[data-character]'); if (character) toggleCharacter(character.dataset.character);
+  const boost = event.target.closest('[data-boost-character]'); if (boost) { boostCharacter(boost.dataset.boostCharacter); return; }
+  const chest = event.target.closest('[data-open-chest]'); if (chest) { openChest(chest.dataset.openChest); return; }
+  const focus = event.target.closest('[data-crew-focus]');
+  if (focus) {
+    crewFocusId = focus.dataset.crewFocus;
+    crewSummaryOpen = true;
+    crewSwapOpen = false;
+    renderCrew();
+    return;
+  }
+  if (event.target.closest('[data-crew-swap-open]')) {
+    crewSwapOpen = true;
+    crewSummaryOpen = false;
+    renderCrew();
+    return;
+  }
+  const upgradeTabBtn = event.target.closest('[data-upgrade-tab]');
+  if (upgradeTabBtn && !upgradeTabBtn.disabled) {
+    upgradeTab = upgradeTabBtn.dataset.upgradeTab;
+    renderCharUpgrade(characterById(crewFocusId));
+    return;
+  }
+  if (event.target.closest('[data-upgrade-close]')) {
+    byId('char-upgrade-modal').close();
+    return;
+  }
+  const character = event.target.closest('#roster [data-character], .crew-roster-panel [data-character]');
+  if (character) { toggleCharacter(character.dataset.character); return; }
   const islandButton = event.target.closest('[data-enter-island]'); if (islandButton) enterIsland(islandButton.dataset.enterIsland);
   const action = event.target.closest('[data-npc-action]'); if (action) { setDialogue(null, true); setView(action.dataset.npcAction); }
 });
-byId('talk-shortcut').addEventListener('click', talk);
+byId('crew-details-btn').addEventListener('click', () => {
+  crewSwapOpen = false;
+  crewSummaryOpen = true;
+  renderCrew();
+  openCharUpgrade();
+});
+byId('crew-swap-btn').addEventListener('click', () => {
+  crewSwapOpen = !crewSwapOpen;
+  crewSummaryOpen = false;
+  renderCrew();
+});
+byId('crew-roster-close').addEventListener('click', () => {
+  crewSwapOpen = false;
+  renderCrew();
+});
+byId('char-upgrade-modal').addEventListener('click', (event) => {
+  if (event.target === byId('char-upgrade-modal')) byId('char-upgrade-modal').close();
+});
 byId('use-potion').addEventListener('click', usePotion);
 byId('revive-potion').addEventListener('click', usePotion);
 byId('death-return').addEventListener('click', () => { returnToPort(); showToast('A tripulação retornou ao porto para se recuperar.'); });
 byId('dialogue-close').addEventListener('click', () => setDialogue(null, true));
-document.querySelector('[data-spawn]').addEventListener('click', () => { returnToPort(); setView('jogo'); showToast('Você voltou ao Cais da Aurora.'); });
-byId('exit-game').addEventListener('click', () => { returnToPort(); setDialogue(null, true); showToast('Sessão local encerrada. Você pode recomeçar pelo Spawn.'); });
-byId('open-islands').addEventListener('click', () => byId('islands-modal').showModal());
+byId('hub-attack').addEventListener('click', () => {
+  if (view !== 'jogo') setView('jogo');
+  if (activeIsland) showToast('Combate automático ativo: a tripulação foca o inimigo mais próximo.');
+  else talk();
+});
+byId('hub-explore').addEventListener('click', () => byId('islands-modal').showModal());
+byId('hub-inventory').addEventListener('click', openInventory);
+document.querySelectorAll('[data-hub-action]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const action = button.dataset.hubAction;
+    if (action === 'porto') { returnToPort(); setView('jogo'); showToast('Você voltou ao Cais da Aurora.'); return; }
+    if (action === 'explorar') { byId('islands-modal').showModal(); syncHubNav(); return; }
+    if (action === 'inventario' || action === 'conta') { openInventory(); syncHubNav(); return; }
+  });
+});
 byId('close-islands').addEventListener('click', () => byId('islands-modal').close());
 byId('islands-modal').addEventListener('click', (event) => { if (event.target === byId('islands-modal')) byId('islands-modal').close(); });
+byId('inventory-content').addEventListener('click', (event) => {
+  const select = event.target.closest('[data-inv-select]');
+  if (select) {
+    inventoryUi.selectedId = select.dataset.invSelect;
+    refreshInventory();
+    return;
+  }
+  const filter = event.target.closest('[data-inv-filter]');
+  if (filter) {
+    inventoryUi.filter = filter.dataset.invFilter;
+    inventoryUi.selectedId = null;
+    refreshInventory();
+    return;
+  }
+  const action = event.target.closest('[data-inv-action]');
+  if (action) handleInventoryAction(action.dataset.invAction, action.dataset.item);
+});
+byId('inventory-modal').addEventListener('click', (event) => { if (event.target === byId('inventory-modal')) { byId('inventory-modal').close(); syncHubNav(); } });
+byId('inventory-modal').addEventListener('close', () => syncHubNav());
 window.addEventListener('resize', resizeCanvas);
 
-setDeathOverlay(false); resetCompanions(); updatePlayerHud(); renderMap(); renderIslandModal(); renderCrew();
+setDeathOverlay(false); resetCompanions(); setHubLocation('Cais da Aurora'); updatePlayerHud(); renderMap(); renderIslandModal(); renderCrew(); syncHubNav();
 resizeCanvas(); requestAnimationFrame(drawScene); requestAnimationFrame(gameLoop);

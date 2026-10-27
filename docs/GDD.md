@@ -45,9 +45,9 @@ Desbloquear novo chefe, rota ou mar
 
 ## 4. Tripulação de cinco membros
 
-Há cinco vagas simultâneas, sem posições travadas. Funções orientam a estratégia, mas personagens híbridos e equipes fora do padrão devem funcionar em conteúdos específicos.
+Há cinco vagas simultâneas, sem posições travadas. Os **Cargos da Tripulação** orientam a estratégia, mas personagens híbridos e equipes fora do padrão devem funcionar em conteúdos específicos.
 
-| Função | Responsabilidade | Exemplos de efeito |
+| Cargo da Tripulação | Responsabilidade | Exemplos de efeito |
 |---|---|---|
 | Capitão | comando e liderança | bônus global, moral, habilidade suprema |
 | Navegador | exploração e risco | rotas raras, tesouros, menos incidentes |
@@ -59,7 +59,7 @@ Há cinco vagas simultâneas, sem posições travadas. Funções orientam a estr
 
 Cada personagem possui:
 
-- função principal e, quando adequado, secundária;
+- cargo principal e, quando adequado, secundário;
 - duas ou três tags;
 - ataque básico automático;
 - habilidade automática com recarga;
@@ -71,7 +71,7 @@ Tags iniciais: `Lâmina`, `Atirador`, `Fogo`, `Médico`, `Cartógrafo`, `Caçado
 
 ### Formação inicial ensinada ao jogador
 
-Capitão + Navegador + Combatente + Suporte + Especialista. Esta é a formação de introdução; o jogador deve poder substituí-la para farm, chefes ou exploração.
+Capitão + Navegador + Combatente + Suporte + Especialista. Estes são os **Cargos da Tripulação** da formação de introdução; o jogador deve poder substituí-los para farm, chefes ou exploração.
 
 ## 5. Combate automático
 
@@ -101,7 +101,7 @@ Sinergias criam estilos de equipe. Elas não devem se tornar multiplicadores obr
 
 | Categoria | Ativação | Benefício típico |
 |---|---|---|
-| Função | funções complementares | cura, escudo, sobrevivência |
+| Cargo | cargos complementares | cura, escudo, sobrevivência |
 | Tag | tags iguais ou relacionadas | combo, controle, dano situacional |
 | Navio | especialista + melhoria | reparo, saque, duração de expedição |
 | Exploração | navegador + tag apropriada | mapas, eventos, redução de risco |
